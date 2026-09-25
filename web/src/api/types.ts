@@ -33,7 +33,7 @@ export interface CorridorField {
 export interface Corridor {
   currency: string;
   fields: CorridorField[];
-  limits?: { min: string; max: string } | null;
+  limits?: { min?: string; max?: string } | null;
 }
 
 export interface Money {
@@ -56,7 +56,7 @@ export interface Account {
 }
 
 export type WithdrawalStatus =
-  | 'creating' | 'awaiting_approval' | 'sent' | 'processing' | 'completed' | 'returned' | 'failed' | 'canceled' | 'error';
+  | 'creating' | 'unknown' | 'awaiting_approval' | 'sent' | 'processing' | 'completed' | 'returned' | 'failed' | 'canceled' | 'error';
 
 export interface TimelineEntry {
   at: string;
@@ -91,5 +91,12 @@ export interface LogLine {
   extra?: { requestId?: string | null };
 }
 
-export const FINAL: WithdrawalStatus[] = ['completed', 'returned', 'failed', 'canceled', 'error'];
-export const isFinal = (s: WithdrawalStatus): boolean => FINAL.includes(s);
+/** Nothing moves these any more. */
+export const TERMINAL: WithdrawalStatus[] = ['returned', 'failed', 'canceled', 'error'];
+export const isTerminal = (s: WithdrawalStatus): boolean => TERMINAL.includes(s);
+
+/**
+ * Done as far as the payee is concerned. `completed` is included, but it is not
+ * terminal: a bank can still return the money, so the app keeps watching it.
+ */
+export const isSettled = (s: WithdrawalStatus): boolean => s === 'completed' || isTerminal(s);

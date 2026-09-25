@@ -34,7 +34,12 @@ interface Props {
  */
 export function BankFormScreen({ payeeId, payee, onSaved, onBack }: Props) {
   const [corridor, setCorridor] = useState<Corridor | null>(null);
-  const [values, setValues] = useState<Record<string, string>>({});
+  const [values, setValuesRaw] = useState<Record<string, string>>({});
+  // The idempotency key for this submission. Kept while the form is unchanged,
+  // so resubmitting after a timeout registers the account once; any edit
+  // makes it a different request with a new id.
+  const [requestId, setRequestId] = useState(() => crypto.randomUUID());
+  const setValues = (v: Record<string, string>) => { setValuesRaw(v); setRequestId(crypto.randomUUID()); };
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -61,7 +66,7 @@ export function BankFormScreen({ payeeId, payee, onSaved, onBack }: Props) {
     setBusy(true);
     setError('');
     try {
-      const res = await api.addAccount(payeeId, details);
+      const res = await api.addAccount(payeeId, details, requestId);
       onSaved(res.account);
     } catch (e) {
       // The server names the field in errors[]; show it under the field when we can.

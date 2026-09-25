@@ -27,7 +27,8 @@ export interface CorridorField {
 export interface Corridor {
   currency: string;
   fields: CorridorField[];
-  limits?: { min: string; max: string } | null;
+  /** Either bound may be absent: not every corridor publishes both. */
+  limits?: { min?: string; max?: string } | null;
 }
 
 export interface CorridorsResponse {
@@ -59,6 +60,8 @@ export interface Beneficiary {
   name: string;
   email?: string;
   paymentMethods: PaymentMethod[];
+  /** On a registration response: the method this call created or matched. */
+  method?: PaymentMethod;
 }
 
 export interface CreateBeneficiaryBody {
@@ -139,7 +142,11 @@ export interface PayoutEvent {
   sequence: string;
   type: string;
   livemode?: boolean;
-  data: WebhookPayout | ApprovalEventData | Record<string, unknown>;
+  /** Feed rows also carry these at the top level. */
+  payoutId?: string | null;
+  status?: PayoutStatus | null;
+  /** Can be null on older feed rows: fall back to the top-level fields. */
+  data: WebhookPayout | ApprovalEventData | Record<string, unknown> | null;
 }
 
 export interface EventsPage {

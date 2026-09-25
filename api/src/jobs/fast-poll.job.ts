@@ -5,6 +5,7 @@ import { APP_CONFIG, AppConfig } from '../config/app.config';
 import { LogService } from '../store/log.service';
 import { StateRepository } from '../store/state.repository';
 import { applyApproval, applyPayout, OPEN_STATUSES } from '../withdrawals/withdrawal-status';
+import { WithdrawalsService } from '../withdrawals/withdrawals.service';
 
 const WINDOW_MS = 20 * 60 * 1000; // stop polling withdrawals older than this
 
@@ -13,23 +14,49 @@ const WINDOW_MS = 20 * 60 * 1000; // stop polling withdrawals older than this
  * seconds so the app updates the moment something happens. Webhooks arrive
  * within about 15 seconds; this covers the impatient case and a run without a
  * public webhook URL.
+ *
+ * It also resolves withdrawals whose send had an unknown outcome, or that a
+ * crash left in `creating`: look the payout up by our reference, and resend
+ * with the stored Idempotency-Key only if it is not there. That lookup runs
+ * for as long as it takes, not just inside the window.
+ *
+ * Each open withdrawal costs one read per tick. The default key limit is 100
+ * requests a minute, so past about eight withdrawals open at once, poll less
+ * often or rely on webhooks.
  */
 @Injectable()
 export class FastPollJob {
+  private running = false;
+
   constructor(
     @Inject(APP_CONFIG) private readonly config: AppConfig,
     private readonly avvio: AvvioClient,
     private readonly repo: StateRepository,
     private readonly log: LogService,
+    private readonly withdrawals: WithdrawalsService,
   ) {}
 
   @Interval(5000)
   async run(): Promise<void> {
-    if (!this.config.avvio.configured) return;
+    if (!this.config.avvio.configured || this.running) return;
+    this.running = true;
+    try {
+      await this.tick();
+    } finally {
+      this.running = false;
+    }
+  }
+
+  private async tick(): Promise<void> {
     const cutoff = Date.now() - WINDOW_MS;
-    const open = Object.values(this.repo.state.withdrawals).filter((w) => OPEN_STATUSES.includes(w.status) && Date.parse(w.createdAt) > cutoff);
+    const open = Object.values(this.repo.state.withdrawals).filter((w) => OPEN_STATUSES.includes(w.status) && !this.withdrawals.isSending(w.id));
     for (const wd of open) {
       try {
+        if (wd.status === 'unknown' || wd.status === 'creating') {
+          await this.withdrawals.resolve(wd);
+          continue;
+        }
+        if (Date.parse(wd.createdAt) < cutoff) continue;
         if (wd.status === 'awaiting_approval' && wd.approvalId) {
           const approval = await this.avvio.approval(wd.approvalId);
           if (applyApproval(wd, approval, 'poll')) {

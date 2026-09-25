@@ -3,7 +3,7 @@
 // status. The app never sees the Avvio API key: it talks only to its backend.
 import { useCallback, useEffect, useState } from 'react';
 import { api } from './api/client';
-import { Account, isFinal, ServerState, Withdrawal } from './api/types';
+import { Account, isSettled, ServerState, Withdrawal } from './api/types';
 import { Console } from './components/Console';
 import { useWithdrawalPolling } from './hooks/useWithdrawalPolling';
 import { AccountsScreen } from './screens/AccountsScreen';
@@ -68,7 +68,7 @@ export default function App() {
         return <BankFormScreen payeeId={payeeId} payee={payee} onSaved={async (acc) => { await loadAccounts(payeeId); setSelected(acc.destinationAccountId); go('accounts'); }} onBack={() => go('accounts')} />;
       case 'confirm':
         if (!account) return null;
-        return <ConfirmScreen amount={amount} account={account} onSend={async () => { setCurrent(await api.withdraw(payeeId, amount, account.destinationAccountId)); go('withdrawal'); }} onBack={() => go('accounts')} />;
+        return <ConfirmScreen amount={amount} account={account} onSend={async (requestId, expectDestination) => { setCurrent(await api.withdraw({ payeeId, amount, destinationAccountId: account.destinationAccountId, requestId, expectDestination })); go('withdrawal'); }} onBack={() => go('accounts')} />;
       case 'withdrawal':
         if (!current) return null;
         return <WithdrawalScreen wd={current} onBack={home} />;
@@ -88,7 +88,7 @@ export default function App() {
         </header>
         <main className="screen">{view}</main>
         <nav className="tabs">
-          <button className={tab === 'home' ? 'active' : ''} onClick={() => { setTab('home'); if (current && isFinal(current.status)) setCurrent(null); }}>Home</button>
+          <button className={tab === 'home' ? 'active' : ''} onClick={() => { setTab('home'); if (current && isSettled(current.status)) setCurrent(null); }}>Home</button>
           <button className={tab === 'activity' ? 'active' : ''} onClick={() => setTab('activity')}>Activity</button>
         </nav>
       </section>

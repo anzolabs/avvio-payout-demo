@@ -1,11 +1,14 @@
 import { useEffect } from 'react';
 import { api } from '../api/client';
-import { isFinal, Withdrawal } from '../api/types';
+import { isTerminal, Withdrawal } from '../api/types';
 
-/** Refreshes a withdrawal from the backend every two seconds until it is final. */
+/**
+ * Refreshes a withdrawal from the backend every two seconds until nothing can
+ * change it. That includes `completed`: a bank return arrives after it.
+ */
 export function useWithdrawalPolling(current: Withdrawal | null, onUpdate: (w: Withdrawal) => void): void {
   useEffect(() => {
-    if (!current || isFinal(current.status)) return undefined;
+    if (!current || isTerminal(current.status)) return undefined;
     const id = current.id;
     const timer = setInterval(async () => {
       try {

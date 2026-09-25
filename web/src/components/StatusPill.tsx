@@ -3,6 +3,7 @@ import { WithdrawalStatus } from '../api/types';
 // Withdrawal status → badge colour and the words the payee reads.
 const PILL: Record<WithdrawalStatus, [string, string]> = {
   creating: ['blue', 'Sending'],
+  unknown: ['blue', 'Confirming'],
   awaiting_approval: ['amber', 'Waiting for approval'],
   sent: ['blue', 'Sent'],
   processing: ['blue', 'Processing'],

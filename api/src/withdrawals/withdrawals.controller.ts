@@ -18,12 +18,16 @@ export class WithdrawalsController {
     return this.withdrawals.get(id);
   }
 
-  /** 201 when the payout was sent or held; 502 carries a withdrawal in `error` state. */
+  /**
+   * 201 when the payout was sent or held for approval; 202 while its outcome
+   * is unknown (the backend keeps resolving it); 502 when Avvio refused it.
+   */
   @Post()
   @HttpCode(201)
   async create(@Body() dto: CreateWithdrawalDto, @Res({ passthrough: true }) res: Response) {
-    const wd = await this.withdrawals.create(dto.payeeId, dto.amount, dto.destinationAccountId);
+    const wd = await this.withdrawals.create(dto.payeeId, dto.amount, dto.destinationAccountId, dto.requestId, dto.expectDestination);
     if (wd.status === 'error') res.status(502);
+    else if (wd.status === 'unknown') res.status(202);
     return toView(wd);
   }
 }

@@ -40,10 +40,20 @@ export class WebhooksController {
       this.log.log('webhook', `duplicate ${verified.id}, acknowledged again`);
       return { ok: true, duplicate: true };
     }
-    this.repo.markSeen(verified.id);
     this.log.log('webhook', `verified ${verified.event.type} (svix-id ${verified.id}, livemode ${verified.event.livemode})`);
-    // Apply after this method returns so the acknowledgement is not delayed.
-    setImmediate(() => this.events.apply(verified.event, 'webhook'));
+    // Acknowledge now, apply right after. The id is remembered only once the
+    // event was applied: if applying fails, the events feed delivers the same
+    // id again and the reconciler applies it then. Nothing is lost, and
+    // applying twice is harmless because statuses only move forward.
+    setImmediate(() => {
+      try {
+        this.events.apply(verified.event, 'webhook');
+        this.repo.markSeen(verified.id);
+        this.repo.save();
+      } catch (e) {
+        this.log.log('webhook', `could not apply ${verified.id}: ${e instanceof Error ? e.message : String(e)}; the feed will retry it`);
+      }
+    });
     return { ok: true };
   }
 }
