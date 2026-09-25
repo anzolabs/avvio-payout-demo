@@ -14,7 +14,12 @@ that, small enough to read in one sitting:
   beside a console that shows what the backend is doing. It never sees the
   API key: it talks only to its own backend.
 
-Node 18 or newer.
+New here? Read **[INTEGRATION_GUIDE.md](INTEGRATION_GUIDE.md)** first: it walks
+from a new account to a live payout, and every step in it is implemented in
+this repo (the table under "What it does, in order" says where).
+
+Node 18 or newer. From clone to your first sandbox payout takes about five
+minutes:
 
 ```
 cp .env.example .env     # a SANDBOX key, your organization id, the webhook secret
@@ -35,10 +40,11 @@ For development with reloads: `npm run dev:api` (Nest, watch mode) and
 
 ## Setup, once
 
-1. **Sandbox key.** In the Avvio dashboard, open the organization menu and
-   choose **Switch to Sandbox**. On the **Developer** page, create an API key
-   (Transact). Copy it once into `AVVIO_API_KEY`. The **Organization ID** in
-   the page header goes into `AVVIO_ORG_ID`.
+1. **Sandbox key.** In the Avvio dashboard, open **Developer** and create an
+   API key with **Transact** permission; anyone on your team with access to
+   the Developer page can create a sandbox key. Copy it once into
+   `AVVIO_API_KEY`. The **Organization ID** in the page header goes into
+   `AVVIO_ORG_ID`.
 2. **Webhook endpoint (optional but recommended).** Expose the local server
    with a tunnel, for example `npx -y cloudflared tunnel --url http://localhost:4300`.
    Still in the Sandbox org, on the **Developer** page, **Webhooks** tab, add
@@ -51,8 +57,9 @@ For development with reloads: `npm run dev:api` (Nest, watch mode) and
    If your organization uses payout approvals, the dashboard's event list has
    no `payout_approval.*` boxes: the demo learns approval outcomes by polling
    `GET /payouts/approvals/{id}` and from the feed.
-3. **Fund the sandbox.** Press **Fund sandbox $1,000** in the console panel, or
-   the **Add $10,000** button on the dashboard's Developer page.
+3. **Fund the sandbox.** Start the app and press **Fund sandbox $1,000** in the
+   console panel beside the phone. (Owners and admins can also press **Add
+   $10,000** on the Developer page in the dashboard's sandbox view.)
 
 ## What it does, in order
 
