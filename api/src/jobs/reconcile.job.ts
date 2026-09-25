@@ -31,6 +31,8 @@ export class ReconcileJob implements OnApplicationBootstrap {
   async run(): Promise<void> {
     if (!this.config.avvio.configured) return;
     let since = this.repo.state.eventsCursor;
+    // No cursor yet: this is a backfill of everything the organization ever did.
+    const backfill = since === null;
     let applied = 0;
     try {
       for (let page = 0; page < MAX_PAGES; page++) {
@@ -38,7 +40,7 @@ export class ReconcileJob implements OnApplicationBootstrap {
         for (const ev of feed.data ?? []) {
           if (this.repo.hasSeen(ev.id)) continue;
           this.repo.markSeen(ev.id);
-          this.events.apply(ev, 'feed');
+          this.events.apply(ev, 'feed', backfill);
           applied++;
         }
         since = feed.nextSince ?? since;
@@ -46,7 +48,7 @@ export class ReconcileJob implements OnApplicationBootstrap {
       }
       this.repo.state.eventsCursor = since;
       this.repo.save();
-      if (applied) this.log.log('feed', `applied ${applied} new event(s); cursor ${since}`);
+      if (applied) this.log.log('feed', `${backfill ? 'backfilled' : 'applied'} ${applied} event(s); cursor ${since}`);
     } catch (e) {
       this.log.log('feed', `GET /events failed: ${e instanceof Error ? e.message : String(e)}`);
     }

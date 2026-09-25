@@ -44,7 +44,7 @@ export class DashboardController {
   /** The bank form: fields come from the corridor, never from the app. */
   @Get('corridor')
   corridorDefinition() {
-    return this.corridor.current();
+    return this.passthrough(() => this.corridor.current());
   }
 
   /** An estimate for the confirm screen. The binding price is on the payout. */

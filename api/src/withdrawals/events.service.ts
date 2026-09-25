@@ -14,23 +14,26 @@ import { applyApproval, applyPayout } from './withdrawal-status';
 export class EventsService {
   constructor(private readonly repo: StateRepository, private readonly log: LogService) {}
 
-  apply(event: PayoutEvent, source: TimelineEntry['source']): void {
+  /** `quiet` suppresses the log line for events that are not ours (the first backfill of an organization's history). */
+  apply(event: PayoutEvent, source: TimelineEntry['source'], quiet = false): void {
     if (!event || typeof event.type !== 'string') return;
+    const skip = (message: string) => { if (!quiet) this.log.log(source, message); };
 
+    // `data` can be null on the feed for event families we do not handle.
     if (event.type.startsWith('payout_approval.')) {
-      const data = event.data as ApprovalEventData;
+      const data = (event.data ?? {}) as ApprovalEventData;
       const wd = this.find({ approvalId: data.approval?.id });
-      if (!wd) return this.log.log(source, `${event.type} for an approval that is not ours`);
+      if (!wd) return skip(`${event.type} for an approval that is not ours`);
       const changed = applyApproval(wd, { ...data.approval, payoutId: data.payoutId ?? data.approval.payoutId }, source);
       this.repo.save();
       return this.log.log(source, `${event.type} seq ${event.sequence ?? '?'} → ${wd.id} ${changed ? 'now ' + wd.status : 'no change'}`);
     }
 
-    if (!event.type.startsWith('payout.')) return this.log.log(source, `ignored ${event.type} (informational)`);
+    if (!event.type.startsWith('payout.')) return skip(`ignored ${event.type} (informational)`);
 
-    const data = event.data as WebhookPayout;
+    const data = (event.data ?? {}) as WebhookPayout;
     const wd = this.find({ reference: data.reference ?? undefined, payoutId: data.payoutId });
-    if (!wd) return this.log.log(source, `${event.type} for a payout that is not ours (reference ${data.reference ?? 'none'})`);
+    if (!wd) return skip(`${event.type} for a payout that is not ours (reference ${data.reference ?? 'none'})`);
     const changed = applyPayout(wd, data, source, event.type);
     this.repo.save();
     this.log.log(source, `${event.type} seq ${event.sequence ?? '?'} → ${wd.id} ${changed ? 'now ' + wd.status : 'no change'}`, { payoutId: data.payoutId, livemode: event.livemode });
