@@ -34,8 +34,9 @@ export interface Withdrawal {
   id: string;
   payeeId: string;
   payeeName: string;
+  /** What was sent, in USD; debited from your balance, fee included. */
   amount: string;
-  currency: string;
+  sourceCurrency: 'USD';
   destinationAccountId: string;
   last4: string | null;
   reference: string;

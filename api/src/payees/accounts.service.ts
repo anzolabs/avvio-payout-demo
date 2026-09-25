@@ -1,6 +1,6 @@
 import { BadRequestException, HttpException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { AvvioClient } from '../avvio/avvio.client';
-import { AvvioError } from '../avvio/avvio.error';
+import { AvvioError, isUnknownOutcome } from '../avvio/avvio.error';
 import { Beneficiary, PaymentMethod, PaymentMethodInput } from '../avvio/avvio.types';
 import { APP_CONFIG, AppConfig } from '../config/app.config';
 import { LogService } from '../store/log.service';
@@ -75,6 +75,12 @@ export class AccountsService {
       if (held) {
         beneficiary = held;
       } else if (e instanceof AvvioError) {
+        // A final refusal (4xx): nothing was registered, so the snapshot is
+        // no longer needed. An unknown outcome keeps it for the retry.
+        if (!isUnknownOutcome(e)) {
+          delete pending[requestId];
+          this.repo.save();
+        }
         this.log.log('api', `register account refused: ${e.status} ${e.type}`, { requestId: e.requestId, errors: e.errors });
         throw new HttpException({ message: e.message, type: e.type, errors: e.errors }, e.status);
       } else {

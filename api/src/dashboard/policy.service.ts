@@ -25,7 +25,7 @@ export class PolicyService implements OnApplicationBootstrap {
     try {
       this.policy = (await this.avvio.policy()).body;
       const threshold = this.policy.approvals?.thresholdUsd ?? null;
-      this.log.log('boot', `policy: mode ${this.policy.mode}, features ${JSON.stringify(this.policy.features)}, approvals.thresholdUsd ${JSON.stringify(threshold)}`);
+      this.log.log('boot', `policy: mode ${this.policy.mode}, developer ${this.policy.features.includes('developer') ? 'on' : 'OFF'}, approvals.thresholdUsd ${JSON.stringify(threshold)}`);
       if (threshold !== null) this.log.log('boot', 'note: payouts above the approval threshold will wait for a human in the dashboard');
       if (this.policy.mode === 'live') this.log.log('boot', 'WARNING: this is a LIVE key; payouts will pay real money');
     } catch (e) {

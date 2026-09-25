@@ -30,6 +30,13 @@ export default function App() {
     void api.state().then((s) => { setServer(s); setPayeeId(s.payees[0].id); });
   }, []);
 
+  // What each payee has left changes with every payout and every return:
+  // re-read it whenever the payee is back on the home screen.
+  useEffect(() => {
+    if (step !== 'home' || tab !== 'home') return;
+    void api.state().then(setServer).catch(() => undefined);
+  }, [step, tab, current?.status]);
+
   const loadAccounts = useCallback(async (id: string) => {
     if (!server?.configured) return;
     const res = await api.accounts(id);

@@ -4,6 +4,7 @@ import { AvvioClient } from '../avvio/avvio.client';
 import { AvvioError } from '../avvio/avvio.error';
 import { APP_CONFIG, AppConfig } from '../config/app.config';
 import { PayeesService } from '../payees/payees.service';
+import { WithdrawalsService } from '../withdrawals/withdrawals.service';
 import { LogService } from '../store/log.service';
 import { CorridorService } from './corridor.service';
 import { PolicyService } from './policy.service';
@@ -16,6 +17,7 @@ export class DashboardController {
     private readonly avvio: AvvioClient,
     private readonly log: LogService,
     private readonly payees: PayeesService,
+    private readonly withdrawals: WithdrawalsService,
     private readonly corridor: CorridorService,
     private readonly policy: PolicyService,
   ) {}
@@ -37,7 +39,9 @@ export class DashboardController {
         maxSinglePayoutUsd: p.limits?.maxSinglePayoutUsd ?? null,
       },
       bootError: this.policy.bootError,
-      payees: this.payees.all(),
+      // `left` is what the backend will actually allow: available minus what
+      // is already on its way or paid. The app shows and validates against it.
+      payees: this.payees.all().map((p) => ({ ...p, left: (this.withdrawals.leftCents(p.id, p.available) / 100).toFixed(2) })),
     };
   }
 

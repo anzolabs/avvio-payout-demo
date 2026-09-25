@@ -15,7 +15,7 @@ body { margin: 0; font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-ser
 @media (max-width: 860px) { .stage { grid-template-columns: 1fr; } .console { order: 2; height: auto; } .console pre { max-height: 50vh; } }
 
 /* the phone */
-.phone { background: var(--card); border: 1px solid var(--line); border-radius: 28px; height: 760px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,.12); }
+.phone { background: var(--card); border: 1px solid var(--line); border-radius: 28px; height: min(760px, calc(100vh - 48px)); min-height: 560px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,.12); }
 .phone-top { display: flex; align-items: center; justify-content: space-between; padding: 18px 18px 10px; border-bottom: 1px solid var(--line); }
 .brand { font-weight: 700; font-size: 18px; }
 .tag { font-size: 11px; color: var(--ink-2); font-weight: 500; margin-left: 4px; }

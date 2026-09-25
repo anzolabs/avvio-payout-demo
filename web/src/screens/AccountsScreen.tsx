@@ -38,7 +38,7 @@ export function AccountsScreen({ accounts, selected, amount, onSelect, onAdd, on
             type="button"
             className="link"
             disabled={removing === a.id}
-            onClick={async (e) => { e.preventDefault(); setRemoving(a.id); try { await onRemove(a.id); } finally { setRemoving(null); } }}
+            onClick={async (e) => { e.preventDefault(); if (!window.confirm(`Remove the account ending ${a.last4 ?? ''}?`)) return; setRemoving(a.id); try { await onRemove(a.id); } finally { setRemoving(null); } }}
           >
             {removing === a.id ? '…' : 'Remove'}
           </button>
