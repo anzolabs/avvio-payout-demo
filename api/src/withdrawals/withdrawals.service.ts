@@ -38,6 +38,14 @@ export class WithdrawalsService {
     private readonly accounts: AccountsService,
   ) {}
 
+  /** What a payee can still withdraw: available minus everything on its way or paid, in cents. */
+  leftCents(payeeId: string, available: string): number {
+    const committed = Object.values(this.repo.state.withdrawals)
+      .filter((w) => w.payeeId === payeeId && COMMITTED.includes(w.status))
+      .reduce((sum, w) => sum + cents(w.amount), 0);
+    return Math.max(cents(available) - committed, 0);
+  }
+
   list() {
     return Object.values(this.repo.state.withdrawals)
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
@@ -72,11 +80,8 @@ export class WithdrawalsService {
     // has earned, counting what is already on its way or paid. Avvio only
     // checks your balance and your limits. In cents, not floats, and with no
     // await between this check and the save below, so two taps cannot both pass.
-    const committed = Object.values(this.repo.state.withdrawals)
-      .filter((w) => w.payeeId === payeeId && COMMITTED.includes(w.status))
-      .reduce((sum, w) => sum + cents(w.amount), 0);
-    const left = cents(payee.available) - committed;
-    if (cents(amount) > left) throw new BadRequestException(`amount is more than ${payee.name} has left to withdraw ($${(Math.max(left, 0) / 100).toFixed(2)})`);
+    const left = this.leftCents(payeeId, payee.available);
+    if (cents(amount) > left) throw new BadRequestException(`amount is more than ${payee.name} has left to withdraw ($${(left / 100).toFixed(2)})`);
 
     const id = 'wd_' + randomBytes(5).toString('hex');
     const now = new Date().toISOString();
@@ -86,7 +91,7 @@ export class WithdrawalsService {
       payeeId,
       payeeName: payee.name,
       amount,
-      currency: this.config.currency,
+      sourceCurrency: 'USD',
       destinationAccountId,
       last4: account.last4,
       reference: `DEMO-${id.slice(3)}`,

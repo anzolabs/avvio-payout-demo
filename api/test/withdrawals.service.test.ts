@@ -111,7 +111,7 @@ test('feed rows with data: null are matched by their top-level payoutId', () => 
   const { repo, log } = testStore();
   const events = new EventsService(repo, log);
   repo.state.withdrawals.wd_1 = {
-    id: 'wd_1', requestId: 'r', payeeId: 'payee_4471', payeeName: 'Ana', amount: '75.00', currency: 'MXN', destinationAccountId: 'a',
+    id: 'wd_1', requestId: 'r', payeeId: 'payee_4471', payeeName: 'Ana', amount: '75.00', sourceCurrency: 'USD', destinationAccountId: 'a',
     last4: '0003', reference: 'DEMO-1', idempotencyKey: 'k', status: 'completed', payoutId: 'sbx_pay_1', timeline: [], createdAt: '', updatedAt: '',
   };
   assert.doesNotThrow(() => events.apply({ id: 'e1', sequence: '1', type: 'payout.returned', payoutId: 'sbx_pay_1', status: 'failed', data: null }, 'feed'));
@@ -162,7 +162,7 @@ test('a first backfill is quiet about events that are not ours, but still applie
   const { repo, log } = testStore();
   const events = new EventsService(repo, log);
   repo.state.withdrawals.wd_1 = {
-    id: 'wd_1', requestId: 'r', payeeId: 'payee_4471', payeeName: 'Ana', amount: '75.00', currency: 'MXN', destinationAccountId: 'a',
+    id: 'wd_1', requestId: 'r', payeeId: 'payee_4471', payeeName: 'Ana', amount: '75.00', sourceCurrency: 'USD', destinationAccountId: 'a',
     last4: '0003', reference: 'DEMO-1', idempotencyKey: 'k', status: 'completed', payoutId: 'sbx_pay_1', timeline: [], createdAt: '', updatedAt: '',
   };
   const before = repo.state.log.length;

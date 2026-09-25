@@ -5,7 +5,7 @@ export class CreateWithdrawalDto {
   payeeId!: string;
 
   /** USD, a decimal string with at most two fractional digits. Never a number. */
-  @Matches(/^\d{1,6}(\.\d{1,2})?$/, { message: 'amount must be a USD decimal string' })
+  @Matches(/^(?=.*[1-9])\d{1,6}(\.\d{1,2})?$/, { message: 'amount must be a USD decimal string above zero' })
   amount!: string;
 
   /** One of the payee's saved accounts, from GET /api/payees/:id/accounts. */

@@ -20,7 +20,7 @@ export function ActivityScreen({ payeeId, onOpen }: { payeeId: string; onOpen: (
       {mine.map((w) => (
         <div className="card" key={w.id} onClick={() => onOpen(w)}>
           <div className="row"><strong>{money(w.amount)}</strong><StatusPill status={w.status} /></div>
-          <div className="muted">{new Date(w.createdAt).toLocaleString()} · {w.reference}</div>
+          <div className="muted">To ····{w.last4 ?? '????'} · {new Date(w.createdAt).toLocaleString()} · {w.reference}</div>
         </div>
       ))}
       {!mine.length && <p className="muted">Nothing yet.</p>}

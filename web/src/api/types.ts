@@ -5,6 +5,8 @@ export interface Payee {
   name: string;
   email: string;
   available: string;
+  /** What the backend will allow now: available minus what is on its way or paid. */
+  left: string;
   note: string;
 }
 

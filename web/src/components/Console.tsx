@@ -29,7 +29,13 @@ export function Console({ server }: { server: ServerState }) {
     }
   }, []);
 
-  useEffect(() => { if (server.configured) void refreshBalance(); }, [server.configured, refreshBalance]);
+  useEffect(() => {
+    if (!server.configured) return undefined;
+    void refreshBalance();
+    // Payouts and returns move it; keep it current.
+    const t = setInterval(() => void refreshBalance(), 10_000);
+    return () => clearInterval(t);
+  }, [server.configured, refreshBalance]);
   useEffect(() => { if (pre.current) pre.current.scrollTop = pre.current.scrollHeight; }, [lines]);
 
   const fund = async () => {

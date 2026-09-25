@@ -29,7 +29,7 @@ export function testStore(config = testConfig()) {
 export function withdrawal(over: Partial<Withdrawal> = {}): Withdrawal {
   const now = new Date().toISOString();
   return {
-    id: 'wd_1', requestId: 'r1', payeeId: 'payee_4471', payeeName: 'Ana', amount: '75.00', currency: 'MXN',
+    id: 'wd_1', requestId: 'r1', payeeId: 'payee_4471', payeeName: 'Ana', amount: '75.00', sourceCurrency: 'USD',
     destinationAccountId: 'acct', last4: '0003', reference: 'DEMO-1', idempotencyKey: 'k1',
     status: 'sent', timeline: [], createdAt: now, updatedAt: now, ...over,
   };
