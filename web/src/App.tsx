@@ -81,7 +81,7 @@ export default function App() {
     <div className="stage">
       <section className="phone" aria-label="The business's app (demo)">
         <header className="phone-top">
-          <div className="brand">Northstar <span className="tag">demo</span></div>
+          <div className="brand">Avvio Payouts <span className="tag">demo</span></div>
           <select aria-label="Signed-in payee" value={payeeId} onChange={(e) => switchPayee(e.target.value)}>
             {server.payees.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
