@@ -1,0 +1,15 @@
+{
+  "name": "avvio-payouts-demo",
+  "version": "0.3.0",
+  "private": true,
+  "description": "A business paying its payees through the Avvio API: a NestJS backend that registers payees, sends payouts, verifies webhooks and reconciles, and a React app standing in for the business's own product.",
+  "license": "MIT",
+  "engines": { "node": ">=18" },
+  "workspaces": ["api", "web"],
+  "scripts": {
+    "build": "npm run build -w web && npm run build -w api",
+    "start": "node api/dist/main.js",
+    "dev:api": "npm run dev -w api",
+    "dev:web": "npm run dev -w web"
+  }
+}

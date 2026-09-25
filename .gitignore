@@ -1,0 +1,24 @@
+# dependencies
+node_modules/
+
+# build output (api compiles to api/dist, web bundles to web/dist)
+dist/
+*.tsbuildinfo
+.vite/
+
+# local state and secrets
+data/
+.env
+.env.*
+!.env.example
+
+# logs and test output
+*.log
+npm-debug.log*
+coverage/
+
+# editors and OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
