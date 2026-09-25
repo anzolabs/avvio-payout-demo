@@ -157,3 +157,17 @@ test('PAYOUT_OUTCOME_UNKNOWN burns the key: never resent, only looked up, then h
   assert.equal(keys.length, 1, 'no resend after the API said it does not know');
   assert.equal(wd.needsSupport, true);
 });
+
+test('a first backfill is quiet about events that are not ours, but still applies ours', () => {
+  const { repo, log } = testStore();
+  const events = new EventsService(repo, log);
+  repo.state.withdrawals.wd_1 = {
+    id: 'wd_1', requestId: 'r', payeeId: 'payee_4471', payeeName: 'Ana', amount: '75.00', currency: 'MXN', destinationAccountId: 'a',
+    last4: '0003', reference: 'DEMO-1', idempotencyKey: 'k', status: 'completed', payoutId: 'sbx_pay_1', timeline: [], createdAt: '', updatedAt: '',
+  };
+  const before = repo.state.log.length;
+  events.apply({ id: 'e1', sequence: '1', type: 'payout.completed', payoutId: 'someone_else', status: 'completed', data: null }, 'feed', true);
+  assert.equal(repo.state.log.length, before, 'nothing logged for a payout that is not ours');
+  events.apply({ id: 'e2', sequence: '2', type: 'payout.returned', payoutId: 'sbx_pay_1', status: 'failed', data: null }, 'feed', true);
+  assert.equal(repo.state.withdrawals.wd_1.status, 'returned');
+});
