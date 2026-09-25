@@ -8,6 +8,8 @@ export class AvvioError extends Error {
     readonly status: number,
     readonly body: ApiErrorBody | null,
     readonly requestId: string | null,
+    /** Seconds, from a 429's Retry-After header. Authoritative when present. */
+    readonly retryAfter: number | null = null,
   ) {
     super(`${body?.type ?? `HTTP_${status}`}: ${body?.message ?? body?.detail ?? 'request failed'}`);
     this.name = 'AvvioError';
@@ -17,4 +19,17 @@ export class AvvioError extends Error {
   get errors(): string[] {
     return this.body?.errors ?? [];
   }
+}
+
+/** Answers that mean "the payout may or may not exist": never mint a new key. */
+const UNKNOWN_TYPES = new Set(['PAYOUT_OUTCOME_UNKNOWN', 'IDEMPOTENCY_KEY_REQUEST_IN_PROGRESS', 'IDEMPOTENCY_KEY_CONFLICT']);
+
+/**
+ * True when a money-moving call's outcome is unknown: a timeout or network
+ * failure (not an AvvioError at all), any 5xx, a 408, a 429 (refused before it
+ * ran, so safe to resend with the same key), or an explicit unknown-outcome type.
+ */
+export function isUnknownOutcome(e: unknown): boolean {
+  if (!(e instanceof AvvioError)) return true;
+  return e.status >= 500 || e.status === 408 || e.status === 429 || UNKNOWN_TYPES.has(e.type);
 }

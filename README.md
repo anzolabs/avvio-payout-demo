@@ -23,6 +23,13 @@ npm run build            # web/ into web/dist, api/ into api/dist
 npm start                # http://localhost:4300
 ```
 
+> **A local demo, not a server to deploy.** Its own `/api` routes have no
+> login: anyone who can reach them can send a payout from your balance. So it
+> listens on `127.0.0.1` only, answers `/api` and the app only to requests
+> addressed to `localhost`, accepts JSON only, and refuses to start with a
+> live key. Your real backend puts your own authentication in front of the
+> same calls.
+
 For development with reloads: `npm run dev:api` (Nest, watch mode) and
 `npm run dev:web` (Vite on :5173, proxied to the API) in two terminals.
 
@@ -39,6 +46,11 @@ For development with reloads: `npm run dev:api` (Nest, watch mode) and
    `payout.*` events. Copy the `whsec_` secret once into
    `AVVIO_WEBHOOK_SECRET`. Without it the demo still works: the backend learns
    every outcome by polling and from the events feed, just a little later.
+   Through the tunnel only `/webhooks/avvio` answers; the app and `/api` refuse
+   anything that did not come from this machine.
+   If your organization uses payout approvals, the dashboard's event list has
+   no `payout_approval.*` boxes: the demo learns approval outcomes by polling
+   `GET /payouts/approvals/{id}` and from the feed.
 3. **Fund the sandbox.** Press **Fund sandbox $1,000** in the console panel, or
    the **Add $10,000** button on the dashboard's Developer page.
 
@@ -47,13 +59,14 @@ For development with reloads: `npm run dev:api` (Nest, watch mode) and
 | Step | Where | What |
 |---|---|---|
 | Form | `GET /api/corridor` → `CorridorService` | The bank form's fields come from `GET /recipients/{orgId}/corridors`, cached an hour. `BankFormScreen` renders one input per field and runs the CLABE check digit before submitting. Nothing is hardcoded |
-| Accounts | `POST /api/payees/:id/accounts` → `AccountsService.add()` | The first account registers the payee with `POST /recipients/{orgId}` (`externalId` = the payee id, persisted `Idempotency-Key`); every later one is `POST /recipients/{orgId}/{recipientId}/methods`. The backend keeps `recipientId`, each `destinationAccountId` and `last4`, **never the account number**. `DELETE .../methods/{methodId}` removes one |
+| Accounts | `POST /api/payees/:id/accounts` → `AccountsService.add()` | The first account registers the payee with `POST /recipients/{orgId}` (`externalId` = the payee id; the `Idempotency-Key` is the app's `requestId`, derived from the details and a per-visit salt, so resubmitting the same details is the same request). The account kept is `method` from the response, never a position in `paymentMethods`; an account an earlier lost attempt already registered for this payee is adopted from the `BANK_ACCOUNT_ALREADY_LINKED` error; every later one is `POST /recipients/{orgId}/{recipientId}/methods`. The backend keeps `recipientId`, each `destinationAccountId` and `last4`, **never the account number**. `DELETE .../methods/{methodId}` removes one |
 | Preview | `GET /api/quote` → `AvvioClient.rates()` | An indicative price for the review screen. The binding rate and fee are on the payout |
-| Send | `POST /api/withdrawals` → `WithdrawalsService.create()` | `POST /payments/organizations/{orgId}/payouts` with the chosen account, a `reference` (`DEMO-…`, the join key) and an `Idempotency-Key` **persisted before sending**. A network failure retries with the same key; a replay returns the same payout. `200` is sent; `202` is held for a human (`awaiting_approval`) |
-| Learn | `FastPollJob`, every 5 s | `GET /orders/{payoutId}` while the payee is watching, or `GET /payouts/approvals/{id}` while an approval is pending |
+| Send | `POST /api/withdrawals` → `WithdrawalsService.create()` | The app sends a `requestId` per confirm screen, so a double tap returns the same withdrawal. The backend enforces what the payee has left (available minus everything already on its way or paid), then calls `POST /payments/organizations/{orgId}/payouts` with the chosen account, a `reference` (`DEMO-…`, the join key), `expectDestination` (the amount the payee was shown) and an `Idempotency-Key` **persisted before sending**. `200` is sent; `202` is held for a human (`awaiting_approval`); a 4xx is final (`error`, nothing was sent) |
+| Unknown outcome | `WithdrawalsService.resolve()` | A timeout, a 5xx, a 429, `PAYOUT_OUTCOME_UNKNOWN`: the payout may exist, so the withdrawal becomes `unknown`, **never** `error`. The poller looks it up with `GET /orders?reference=`, and only if it is not there resends with the **same** key (honouring `Retry-After`). A withdrawal a crash left in `creating` is resolved the same way on restart. When the API answers `PAYOUT_OUTCOME_UNKNOWN` it cannot vouch for that key either, so the demo stops resending and only looks up; after 20 lookups it asks the payee to contact support with the reference |
+| Learn | `FastPollJob`, every 5 s | `GET /orders/{payoutId}` while the payee is watching, or `GET /payouts/approvals/{id}` while an approval is pending. One read per open withdrawal per tick: the default key limit is 100 a minute, so past about eight open at once rely on webhooks |
 | Confirm | `POST /webhooks/avvio` → `WebhooksController` | Raw bytes in, `WebhookVerifier` checks `svix-signature` (HMAC-SHA256 over `id.timestamp.body`, five-minute tolerance, rotation-safe), dedupe on `svix-id`, answer 200, then `EventsService` applies it by `reference`, `payoutId` or `approvalId` |
-| Guarantee | `ReconcileJob`, every 30 s | `GET /events?since=` with a persisted cursor. Webhooks are the fast path; the feed is what the books are reconciled from |
-| Never backwards | `withdrawal-status.ts` | Pure functions. Statuses only move forward, so a late poll or an out-of-order delivery cannot regress `completed` to `pending`. `payout.returned` moves `completed` to `returned`: a bank return days later, which is the case most integrations get wrong |
+| Guarantee | `ReconcileJob`, every 30 s | `GET /events?since=` with a persisted cursor, saved page by page. Webhooks are the fast path; the feed is what the books are reconciled from. An event id is remembered only once it was applied. Older feed rows can have `data: null`; they are matched by their top-level `payoutId` |
+| Never backwards | `withdrawal-status.ts` | Pure functions. Statuses only move forward, so a late poll or an out-of-order delivery cannot regress `completed` to `pending`. `completed` is not final: it can become `returned` (a bank return days later, `returned_by_bank`, money back) or `failed` (a clawback after settlement, such as `compliance_rejected`, where the money is not assumed back: read `fundsReturned`). `returned`, `failed`, `canceled` and `error` never change again. The app keeps watching a `completed` withdrawal for that reason |
 
 ## Try the outcomes
 
@@ -71,36 +84,18 @@ Add `…0003` and `…45669` for the same payee and pay into each: one comes
 back, one settles. The picker keeps both for next time; **Remove** deletes
 that payment method on Avvio's side too.
 
-## Testing against a local Avvio backend
-
-From `anzolabs-B2B-backend`, with local Postgres running:
+## Tests
 
 ```
-# 1. a scratch database, migrated from empty (your dev database is untouched)
-psql -h localhost -U postgres -c "CREATE DATABASE avvio_demo_local"
-DATABASE_URL="postgresql://postgres@localhost:5432/avvio_demo_local?sslmode=disable" npx prisma migrate deploy
-
-# 2. a partner organization and a sandbox key; it prints AVVIO_API_KEY and AVVIO_ORG_ID
-DATABASE_URL="postgresql://postgres@localhost:5432/avvio_demo_local?sslmode=disable" \
-  NODE_OPTIONS=--conditions=import npx ts-node scripts/seed-e2e-org.ts
-
-# 3. the API on :3000
-npx prisma generate && npm run build
-DATABASE_URL="postgresql://postgres@localhost:5432/avvio_demo_local?sslmode=disable" NODE_ENV=development PORT=3000 \
-  ALLOWED_ORIGINS="http://localhost:4300" node dist/src/main.js
+npm test
 ```
 
-Then in this folder set `.env` to the printed key and org id with
-`AVVIO_BASE_URL=http://localhost:3000/api/v1`, and register a local webhook
-endpoint (plain `http://localhost` is accepted only by a development backend):
-
-```
-curl -s -X POST http://localhost:3000/api/v1/payments/organizations/$AVVIO_ORG_ID/sandbox/webhook-endpoints \
-  -H "x-api-key: $AVVIO_API_KEY" -H 'content-type: application/json' \
-  -d '{"url":"http://localhost:4300/webhooks/avvio","events":["payout.pending","payout.processing","payout.completed","payout.failed","payout.returned","payout.canceled"]}'
-```
-
-Put the returned `whsec_` secret into `AVVIO_WEBHOOK_SECRET` and `npm start`.
+Node's built-in runner, no extra dependencies. They pin the rules worth
+copying: the webhook signature recipe (including a rotation and a tampered
+body), the forward-only status machine (a bank return after `completed`,
+out-of-order deliveries), and the send path (a timeout resolved with the same
+`Idempotency-Key`, a double tap sending once, a 4xx never resent, feed rows
+with `data: null`).
 
 ## Layout
 
@@ -118,6 +113,7 @@ api/src
   webhooks/                     POST /webhooks/avvio
   jobs/                         FastPollJob, ReconcileJob
   dashboard/                    /api/state, corridor, quote, log, balance, sandbox fund
+api/test                        node:test suites: verifier, status machine, send path
 web/src
   api/                          typed client and view types
   hooks/                        useWithdrawalPolling, useBackendLog

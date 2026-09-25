@@ -9,6 +9,10 @@ export interface Account {
 
 export type WithdrawalStatus =
   | 'creating'
+  /** The send went out but its outcome is not known (timeout, 5xx, 429). The
+   *  payout may exist. Resolved by looking it up by reference, then by
+   *  re-sending with the SAME Idempotency-Key. Never by a new key. */
+  | 'unknown'
   | 'awaiting_approval'
   | 'sent'
   | 'processing'
@@ -37,6 +41,20 @@ export interface Withdrawal {
   reference: string;
   /** Persisted before the send; never leaves the backend. */
   idempotencyKey: string;
+  /** The app's id for this tap, so a double tap or a retried request from the
+   *  app returns this withdrawal instead of creating a second one. */
+  requestId: string;
+  /** What the payee was shown on the confirm screen; sent as expectDestination. */
+  expectDestination?: string;
+  /** Resend attempts while `unknown`, and when the next one is due. */
+  attempts?: number;
+  nextAttemptAt?: string;
+  /** The API said the outcome of this key is unknown: never resend, only look up. */
+  keyBurned?: boolean;
+  /** Reference lookups made while `unknown`; past a limit a person must look. */
+  lookups?: number;
+  /** Still unknown after many lookups: show support details instead of a spinner. */
+  needsSupport?: boolean;
   status: WithdrawalStatus;
   payoutId?: string;
   approvalId?: string;
@@ -69,6 +87,12 @@ export interface State {
   seenEvents: string[];
   /** `nextSince` from the last feed page. */
   eventsCursor: string | null;
+  /**
+   * requestId -> the payee's method ids on Avvio before that registration was
+   * first sent. Kept so a retry of the same request compares against the
+   * same snapshot, not one that already includes the account it added.
+   */
+  pendingRegistrations?: Record<string, string[]>;
   log: LogLine[];
 }
 
@@ -78,5 +102,6 @@ export const emptyState = (): State => ({
   withdrawals: {},
   seenEvents: [],
   eventsCursor: null,
+  pendingRegistrations: {},
   log: [],
 });

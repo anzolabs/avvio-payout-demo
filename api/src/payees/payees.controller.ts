@@ -14,7 +14,7 @@ export class PayeesController {
 
   @Post(':payeeId/accounts')
   async add(@Param('payeeId') payeeId: string, @Body() dto: AddAccountDto) {
-    return { account: await this.accounts.add(payeeId, dto.details) };
+    return { account: await this.accounts.add(payeeId, dto.details, dto.requestId) };
   }
 
   @Delete(':payeeId/accounts/:methodId')

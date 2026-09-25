@@ -6,6 +6,10 @@ import {
   EventsPage, IndicativeQuote, PaymentMethodInput, Payout, PendingApproval, Policy,
 } from './avvio.types';
 
+// Longer than the server's own 30 s rail timeout, so a slow send is answered
+// rather than abandoned.
+const TIMEOUT_MS = 35_000;
+
 export interface ApiResponse<T> {
   status: number;
   body: T;
@@ -110,10 +114,13 @@ export class AvvioClient {
     // retry. That is the whole double-payment guard.
     if (opts.idempotencyKey) headers['Idempotency-Key'] = opts.idempotencyKey;
 
+    // A call that hangs is an unknown outcome, not a slow success: give up
+    // after 35 s and let the caller resolve it with the same key.
     const res = await fetch(this.config.avvio.base + path, {
       method,
       headers,
       body: opts.body === undefined ? undefined : JSON.stringify(opts.body),
+      signal: AbortSignal.timeout(TIMEOUT_MS),
     });
     const text = await res.text();
     let json: unknown = null;
@@ -123,7 +130,10 @@ export class AvvioClient {
       json = { raw: text.slice(0, 200) };
     }
     const requestId = res.headers.get('x-request-id') ?? (json as { requestId?: string } | null)?.requestId ?? null;
-    if (!res.ok) throw new AvvioError(res.status, json as never, requestId);
+    if (!res.ok) {
+      const retryAfter = Number(res.headers.get('retry-after'));
+      throw new AvvioError(res.status, json as never, requestId, Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : null);
+    }
     return { status: res.status, body: json as T, requestId, replayed: res.headers.get('idempotency-replayed') === 'true' };
   }
 }

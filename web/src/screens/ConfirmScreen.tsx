@@ -6,7 +6,8 @@ import { BackLink, Screen } from '../components/Screen';
 interface Props {
   amount: string;
   account: Account;
-  onSend: () => Promise<void>;
+  /** requestId identifies this tap; expectDestination is what the payee was shown. */
+  onSend: (requestId: string, expectDestination?: string) => Promise<void>;
   onBack: () => void;
 }
 
@@ -15,6 +16,9 @@ export function ConfirmScreen({ amount, account, onSend, onBack }: Props) {
   const [quote, setQuote] = useState<Quote | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  // One id for this confirm screen: a double tap, or a retry after a timeout,
+  // sends the same id and the backend returns the same withdrawal.
+  const [requestId] = useState(() => crypto.randomUUID());
 
   useEffect(() => {
     let live = true;
@@ -26,7 +30,7 @@ export function ConfirmScreen({ amount, account, onSend, onBack }: Props) {
     setBusy(true);
     setError('');
     try {
-      await onSend();
+      await onSend(requestId, quote?.destinationAmount.amount);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       setBusy(false);

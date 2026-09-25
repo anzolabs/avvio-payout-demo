@@ -25,7 +25,7 @@ const webDist = loadConfig().webDist;
     DashboardModule,
     // The built React app, when it exists. API and webhook routes take precedence.
     ...(existsSync(webDist)
-      ? [ServeStaticModule.forRoot({ rootPath: webDist, exclude: ['/api/(.*)', '/webhooks/(.*)'] })]
+      ? [ServeStaticModule.forRoot({ rootPath: webDist, exclude: ['/api/{*path}', '/webhooks/{*path}'] })]
       : []),
   ],
 })

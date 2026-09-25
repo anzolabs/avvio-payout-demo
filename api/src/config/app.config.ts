@@ -4,6 +4,7 @@ import { join } from 'node:path';
 /** Everything the backend reads from the environment, resolved once at boot. */
 export interface AppConfig {
   readonly port: number;
+  readonly host: string;
   /** Destination currency for every payout. MXN is the sandbox corridor. */
   readonly currency: string;
   /** The whsec_ secret of the registered webhook endpoint; empty = polling and feed only. */
@@ -42,8 +43,16 @@ export function loadConfig(): AppConfig {
   const key = process.env.AVVIO_API_KEY ?? '';
   const org = process.env.AVVIO_ORG_ID ?? '';
   const base = (process.env.AVVIO_BASE_URL ?? 'https://api.avvio.xyz/business/api/v1').replace(/\/+$/, '');
+  // This demo's own endpoints have no login: anyone who can reach them can
+  // send a payout. That is fine for test money on your laptop and never for a
+  // live key. Your real backend puts its own auth in front of these calls.
+  if (key.startsWith('avvio_live_')) {
+    throw new Error('This demo refuses live keys: its endpoints are unauthenticated. Use an avvio_test_ key.');
+  }
   return {
     port: Number(process.env.PORT ?? 4300),
+    /** Loopback only by default. Expose the webhook path through a tunnel, not the app. */
+    host: process.env.HOST ?? '127.0.0.1',
     currency: (process.env.DESTINATION_CURRENCY ?? 'MXN').toUpperCase(),
     webhookSecret: process.env.AVVIO_WEBHOOK_SECRET ?? '',
     dataFile: process.env.DATA_FILE ?? join(ROOT, 'api', 'data', 'state.json'),

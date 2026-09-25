@@ -19,10 +19,10 @@ export class EventsService {
     if (!event || typeof event.type !== 'string') return;
     const skip = (message: string) => { if (!quiet) this.log.log(source, message); };
 
-    // `data` can be null on the feed for event families we do not handle.
     if (event.type.startsWith('payout_approval.')) {
-      const data = (event.data ?? {}) as ApprovalEventData;
-      const wd = this.find({ approvalId: data.approval?.id });
+      const data = event.data as ApprovalEventData | null;
+      if (!data?.approval?.id) return skip(`${event.type} ${event.id} carries no approval; skipped`);
+      const wd = this.find({ approvalId: data.approval.id });
       if (!wd) return skip(`${event.type} for an approval that is not ours`);
       const changed = applyApproval(wd, { ...data.approval, payoutId: data.payoutId ?? data.approval.payoutId }, source);
       this.repo.save();
@@ -31,8 +31,11 @@ export class EventsService {
 
     if (!event.type.startsWith('payout.')) return skip(`ignored ${event.type} (informational)`);
 
-    const data = (event.data ?? {}) as WebhookPayout;
-    const wd = this.find({ reference: data.reference ?? undefined, payoutId: data.payoutId });
+    // Older feed rows have `data: null` and carry only the top-level payoutId
+    // and status. Match those by payoutId.
+    const data = (event.data ?? { payoutId: event.payoutId ?? '', status: event.status }) as WebhookPayout;
+    if (!data.payoutId && !data.reference) return skip(`${event.type} ${event.id} names no payout; skipped`);
+    const wd = this.find({ reference: data.reference ?? undefined, payoutId: data.payoutId || undefined });
     if (!wd) return skip(`${event.type} for a payout that is not ours (reference ${data.reference ?? 'none'})`);
     const changed = applyPayout(wd, data, source, event.type);
     this.repo.save();

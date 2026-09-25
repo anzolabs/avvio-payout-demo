@@ -23,13 +23,16 @@ export class ReconcileJob implements OnApplicationBootstrap {
     private readonly events: EventsService,
   ) {}
 
+  private running = false;
+
   onApplicationBootstrap(): void {
     void this.run();
   }
 
   @Interval(30000)
   async run(): Promise<void> {
-    if (!this.config.avvio.configured) return;
+    if (!this.config.avvio.configured || this.running) return;
+    this.running = true;
     let since = this.repo.state.eventsCursor;
     // No cursor yet: this is a backfill of everything the organization ever did.
     const backfill = since === null;
@@ -39,18 +42,28 @@ export class ReconcileJob implements OnApplicationBootstrap {
         const feed = await this.avvio.events(since);
         for (const ev of feed.data ?? []) {
           if (this.repo.hasSeen(ev.id)) continue;
-          this.repo.markSeen(ev.id);
-          this.events.apply(ev, 'feed', backfill);
-          applied++;
+          try {
+            this.events.apply(ev, 'feed', backfill);
+            // Only after it was applied: an event that failed is not "seen".
+            this.repo.markSeen(ev.id);
+            applied++;
+          } catch (e) {
+            // One bad row must not stall the feed. Log it loudly with its id;
+            // the cursor still moves on, so this is where you would alert.
+            this.log.log('feed', `could not apply ${ev.type} ${ev.id}: ${e instanceof Error ? e.message : String(e)}`);
+          }
         }
         since = feed.nextSince ?? since;
+        // Persist the cursor page by page so a crash mid-backlog resumes here.
+        this.repo.state.eventsCursor = since;
+        this.repo.save();
         if (!feed.hasMore) break;
       }
-      this.repo.state.eventsCursor = since;
-      this.repo.save();
       if (applied) this.log.log('feed', `${backfill ? 'backfilled' : 'applied'} ${applied} event(s); cursor ${since}`);
     } catch (e) {
       this.log.log('feed', `GET /events failed: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      this.running = false;
     }
   }
 }
