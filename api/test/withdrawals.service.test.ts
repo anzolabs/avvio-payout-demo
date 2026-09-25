@@ -119,3 +119,41 @@ test('feed rows with data: null are matched by their top-level payoutId', () => 
   assert.doesNotThrow(() => events.apply({ id: 'e2', sequence: '2', type: 'payout.pending', data: null }, 'feed'));
   assert.doesNotThrow(() => events.apply({ id: 'e3', sequence: '3', type: 'payout_approval.executed', data: null }, 'feed'));
 });
+
+const REQ2 = '1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed';
+const REQ3 = '2c8e7ade-ccfe-4c3e-8c6e-bc9efccea5fe';
+
+test('what a payee has available counts withdrawals already made; a failure gives it back', async () => {
+  const { svc } = setup([() => ok('p1'), () => { throw new AvvioError(400, { type: 'VALIDATION_ERROR' }, 'r'); }, () => ok('p3')]);
+  // Ana has 312.50.
+  await svc.create('payee_4471', '300.00', 'acct_0003', REQ);
+  await assert.rejects(svc.create('payee_4471', '12.51', 'acct_0003', REQ2), /left to withdraw \(\$12\.50\)/);
+  // A withdrawal that ends in error returns what it held.
+  const { svc: svc2 } = setup([() => { throw new AvvioError(400, { type: 'VALIDATION_ERROR' }, 'r'); }, () => ok('p2')]);
+  await svc2.create('payee_4471', '312.50', 'acct_0003', REQ);
+  const again = await svc2.create('payee_4471', '312.50', 'acct_0003', REQ3);
+  assert.equal(again.status, 'sent');
+});
+
+test('two taps at the same instant with one requestId send once', async () => {
+  const { svc, keys } = setup([() => ok('p1'), () => ok('p2')]);
+  const [a, b] = await Promise.all([
+    svc.create('payee_4471', '10.00', 'acct_0003', REQ),
+    svc.create('payee_4471', '10.00', 'acct_0003', REQ),
+  ]);
+  assert.equal(a.id, b.id);
+  assert.equal(keys.length, 1);
+});
+
+test('PAYOUT_OUTCOME_UNKNOWN burns the key: never resent, only looked up, then handed to a person', async () => {
+  const { svc, keys } = setup([() => { throw new AvvioError(500, { type: 'PAYOUT_OUTCOME_UNKNOWN' }, 'r'); }]);
+  const wd = await svc.create('payee_4471', '10.00', 'acct_0003', REQ);
+  assert.equal(wd.status, 'unknown');
+  assert.equal(wd.keyBurned, true);
+  for (let i = 0; i < 20; i++) {
+    due(wd);
+    await svc.resolve(wd); // lookup finds nothing each time
+  }
+  assert.equal(keys.length, 1, 'no resend after the API said it does not know');
+  assert.equal(wd.needsSupport, true);
+});

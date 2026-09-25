@@ -76,6 +76,8 @@ export interface Withdrawal {
   payoutId?: string;
   failureCode?: string | null;
   fundsReturned?: boolean;
+  /** Still unknown after many lookups: a person has to look. */
+  needsSupport?: boolean;
   destinationAmount?: string;
   destinationCurrency?: string;
   fee?: string;

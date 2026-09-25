@@ -6,9 +6,12 @@ import { TimelineEntry, Withdrawal, WithdrawalStatus } from '../store/state.type
  * answered after a webhook, or a webhook delivered out of order, must never
  * move a withdrawal backwards. Two rules on top of the order:
  *
- * - `completed` is not final. A bank can return the money days later, and the
- *   only move out of `completed` is to `returned`.
- * - `returned`, `failed`, `canceled` and `error` are final. Nothing moves them.
+ * - `completed` is not final. A bank can return the money days later
+ *   (`returned`), and a payout can be clawed back after settlement (`failed`,
+ *   for example `compliance_rejected`, with the money NOT necessarily back).
+ * - `returned`, `failed`, `canceled` and `error` are final. Nothing moves their
+ *   status, but a later event may still fill in `fundsReturned`.
+ * - `canceled` only happens before dispatch: never from `processing` on.
  */
 const RANK: Record<WithdrawalStatus, number> = {
   creating: 0, unknown: 0, awaiting_approval: 1, sent: 2,
@@ -24,7 +27,8 @@ export const isTerminal = (s: WithdrawalStatus): boolean => TERMINAL.includes(s)
 
 export function canMove(from: WithdrawalStatus, to: WithdrawalStatus): boolean {
   if (from === to || isTerminal(from)) return false;
-  if (from === 'completed') return to === 'returned';
+  if (from === 'completed') return to === 'returned' || to === 'failed';
+  if (to === 'canceled') return RANK[from] < RANK.processing;
   // Only a send (or an approval's execution) can end in "we do not know yet".
   if (to === 'unknown') return from === 'creating' || from === 'awaiting_approval';
   return RANK[to] > RANK[from];
@@ -54,12 +58,14 @@ export function transition(wd: Withdrawal, next: WithdrawalStatus, source: Timel
 
 /** Fold a payout, in either the REST or the webhook shape, into a withdrawal. */
 export function applyPayout(wd: Withdrawal, p: Payout | WebhookPayout, source: TimelineEntry['source'], eventType?: string): boolean {
-  let next = statusFromPayout(p, eventType);
+  const next = statusFromPayout(p, eventType);
   if (!next) return false;
-  // A payout that completed and then failed was paid and sent back: a return,
-  // whatever the failure code says.
-  if (wd.status === 'completed' && next === 'failed') next = 'returned';
-  if (!canMove(wd.status, next)) return false;
+  if (!canMove(wd.status, next)) {
+    // Same final status, later facts: the rail's refund step arrives as a
+    // second failed event carrying fundsReturned. Record it; never move status.
+    if (next === wd.status && isTerminal(wd.status)) return fillFacts(wd, p);
+    return false;
+  }
 
   wd.payoutId = p.payoutId || wd.payoutId;
   wd.failureCode = p.failureCode ?? wd.failureCode ?? null;
@@ -76,6 +82,21 @@ export function applyPayout(wd: Withdrawal, p: Payout | WebhookPayout, source: T
   if (fee && typeof fee === 'object') wd.fee = fee.amount;
   if (p.completedAt) wd.completedAt = p.completedAt;
   return transition(wd, next, source, eventType ?? `payout ${p.status}`);
+}
+
+/** Copy failureCode / fundsReturned onto a final withdrawal. True if anything changed. */
+function fillFacts(wd: Withdrawal, p: Pick<Payout, 'failureCode' | 'fundsReturned'>): boolean {
+  let changed = false;
+  if (p.failureCode && p.failureCode !== wd.failureCode) {
+    wd.failureCode = p.failureCode;
+    changed = true;
+  }
+  if (typeof p.fundsReturned === 'boolean' && p.fundsReturned !== wd.fundsReturned) {
+    wd.fundsReturned = p.fundsReturned;
+    changed = true;
+  }
+  if (changed) wd.updatedAt = new Date().toISOString();
+  return changed;
 }
 
 /** Fold an approval (after a 202) into a withdrawal. */

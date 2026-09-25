@@ -13,6 +13,16 @@ function clabeOk(v: string): boolean {
   return (10 - (sum % 10)) % 10 === Number(v[17]);
 }
 
+/** A UUID-shaped SHA-256 of the salt and the (sorted) details. */
+async function requestIdFor(salt: string, details: Record<string, string>): Promise<string> {
+  const text = salt + JSON.stringify(Object.keys(details).sort().map((k) => [k, details[k]]));
+  const bytes = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))).slice(0, 16);
+  bytes[6] = (bytes[6] & 0x0f) | 0x50; // version 5 (name-based)
+  bytes[8] = (bytes[8] & 0x3f) | 0x80; // RFC 4122 variant
+  const hex = [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
 function validate(field: CorridorField, value: string): string | null {
   if (!value && field.required !== false) return `${field.title || field.id} is required`;
   if (value && field.pattern && !new RegExp(`^(?:${field.pattern})$`).test(value)) return `Check this ${field.title || field.id}`;
@@ -34,12 +44,12 @@ interface Props {
  */
 export function BankFormScreen({ payeeId, payee, onSaved, onBack }: Props) {
   const [corridor, setCorridor] = useState<Corridor | null>(null);
-  const [values, setValuesRaw] = useState<Record<string, string>>({});
-  // The idempotency key for this submission. Kept while the form is unchanged,
-  // so resubmitting after a timeout registers the account once; any edit
-  // makes it a different request with a new id.
-  const [requestId, setRequestId] = useState(() => crypto.randomUUID());
-  const setValues = (v: Record<string, string>) => { setValuesRaw(v); setRequestId(crypto.randomUUID()); };
+  const [values, setValues] = useState<Record<string, string>>({});
+  // One random salt per visit to this form. The request id is derived from it
+  // and the details, so resubmitting the same details (even retyped) after a
+  // timeout is the same request, registered once; different details are a
+  // different request. The salt keeps the id from revealing the account.
+  const [salt] = useState(() => crypto.randomUUID());
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -66,7 +76,7 @@ export function BankFormScreen({ payeeId, payee, onSaved, onBack }: Props) {
     setBusy(true);
     setError('');
     try {
-      const res = await api.addAccount(payeeId, details, requestId);
+      const res = await api.addAccount(payeeId, details, await requestIdFor(salt, details));
       onSaved(res.account);
     } catch (e) {
       // The server names the field in errors[]; show it under the field when we can.

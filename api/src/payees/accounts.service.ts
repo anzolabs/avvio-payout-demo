@@ -52,9 +52,16 @@ export class AccountsService {
       throw new BadRequestException('details must map corridor field ids to strings of at most 128 characters');
     }
     const state = this.repo.state;
-    // The payee's methods on Avvio before this call, by id, so the one this
-    // call adds can be told apart from the ones it already had.
-    const before = await this.methodIds(payeeId);
+    // The payee's methods on Avvio before this request was FIRST sent, by id,
+    // so the one it adds can be told apart from the ones it already had. A
+    // retry reuses the stored snapshot: a fresh one would already contain the
+    // account the lost first attempt registered.
+    const pending = (state.pendingRegistrations ??= {});
+    if (!pending[requestId]) {
+      pending[requestId] = [...(await this.methodIds(payeeId))];
+      this.repo.save();
+    }
+    const before = new Set(pending[requestId]);
     const method: PaymentMethodInput = { kind: 'fiat', currency: this.config.currency, recipientDetails: details };
     // The app's id for this submission: a resubmit of the same form after a
     // timeout reuses it, so the account is registered once.
@@ -64,12 +71,17 @@ export class AccountsService {
     try {
       beneficiary = await this.register(payeeId, payee.name, payee.email, method, idempotencyKey);
     } catch (e) {
-      if (e instanceof AvvioError) {
+      const held = e instanceof AvvioError ? await this.alreadyHeld(payeeId, e) : undefined;
+      if (held) {
+        beneficiary = held;
+      } else if (e instanceof AvvioError) {
         this.log.log('api', `register account refused: ${e.status} ${e.type}`, { requestId: e.requestId, errors: e.errors });
         throw new HttpException({ message: e.message, type: e.type, errors: e.errors }, e.status);
+      } else {
+        throw e;
       }
-      throw e;
     }
+    delete pending[requestId];
 
     const m = registeredMethod(beneficiary, before, details);
     if (!m?.destinationAccountId) {
@@ -109,8 +121,29 @@ export class AccountsService {
       return new Set((b.paymentMethods ?? []).map((m) => m.id));
     } catch (e) {
       if (e instanceof AvvioError && e.status === 404) return new Set();
+      if (e instanceof AvvioError) {
+        this.log.log('api', `GET /recipients/external/${payeeId} failed: ${e.status} ${e.type}`, { requestId: e.requestId });
+        throw new HttpException({ message: e.message, type: e.type }, e.status);
+      }
       throw e;
     }
+  }
+
+  /**
+   * BANK_ACCOUNT_ALREADY_LINKED naming THIS payee's own beneficiary: the account
+   * is already theirs (an earlier attempt registered it and the answer was
+   * lost). Adopt it, named by the error, instead of failing. Owned by anyone
+   * else, it stays an error.
+   */
+  private async alreadyHeld(payeeId: string, e: AvvioError): Promise<Beneficiary | undefined> {
+    const body = e.body as { existingRecipientId?: string; existingMethodId?: string } | null;
+    if (e.type !== 'BANK_ACCOUNT_ALREADY_LINKED' || !body?.existingMethodId) return undefined;
+    const b = await this.avvio.beneficiaryByExternalId(payeeId).catch(() => undefined);
+    if (!b || b.id !== body.existingRecipientId) return undefined;
+    const method = b.paymentMethods.find((m) => m.id === body.existingMethodId);
+    if (!method) return undefined;
+    this.log.log('api', `account already registered for ${payeeId} (${method.last4 ?? '····'}); using it`, { requestId: e.requestId });
+    return { ...b, method };
   }
 
   /** First account: POST /recipients. Later ones: POST /recipients/{id}/methods. */

@@ -16,8 +16,11 @@ const FORWARDING_HEADERS = ['x-forwarded-for', 'x-forwarded-host', 'forwarded', 
  * carry the tunnel's hostname and forwarding headers, so they are refused
  * everywhere else. The Host check also stops DNS rebinding.
  */
-function localOnlyExceptWebhooks(req: Request, res: Response, next: NextFunction): void {
-  if (req.path.startsWith('/webhooks/')) return next();
+// Express matches routes case-insensitively, so the guards must too.
+const isWebhook = (req: Request): boolean => req.path.toLowerCase().startsWith('/webhooks/');
+
+export function localOnlyExceptWebhooks(req: Request, res: Response, next: NextFunction): void {
+  if (isWebhook(req)) return next();
   const host = (req.headers.host ?? '').replace(/:\d+$/, '').toLowerCase();
   // Tunnels and proxies add these; a request typed into this machine's browser
   // never has them. Checked as well as Host, in case a tunnel rewrites Host.
@@ -27,12 +30,13 @@ function localOnlyExceptWebhooks(req: Request, res: Response, next: NextFunction
 }
 
 /**
- * Mutations on /api accept JSON only. A browser cannot send JSON to another
- * origin without a CORS preflight, which this server never grants, so a
- * malicious page cannot make your browser fund or pay through the demo.
+ * Every change accepts JSON only (webhooks excepted: they are verified by
+ * signature). A browser cannot send JSON to another origin without a CORS
+ * preflight, which this server never grants, so a malicious page cannot make
+ * your browser fund or pay through the demo.
  */
-function jsonOnly(req: Request, res: Response, next: NextFunction): void {
-  if (req.method === 'GET' || req.method === 'HEAD' || !req.path.startsWith('/api/')) return next();
+export function jsonOnly(req: Request, res: Response, next: NextFunction): void {
+  if (req.method === 'GET' || req.method === 'HEAD' || isWebhook(req)) return next();
   if ((req.headers['content-type'] ?? '').split(';')[0].trim() === 'application/json') return next();
   res.status(415).json({ message: 'application/json only' });
 }
@@ -49,4 +53,4 @@ async function bootstrap(): Promise<void> {
   new Logger('demo').log(`Avvio payouts demo: http://localhost:${config.port}  (webhook receiver at POST /webhooks/avvio)`);
 }
 
-void bootstrap();
+if (require.main === module) void bootstrap();

@@ -10,7 +10,9 @@ test('statuses only move forward', () => {
     ['processing', 'sent', false],
     ['sent', 'completed', true], // a skipped step is fine
     ['completed', 'returned', true],
-    ['completed', 'failed', false], // applyPayout turns this into returned
+    ['completed', 'failed', true], // a clawback after settlement
+    ['processing', 'canceled', false],
+    ['sent', 'canceled', true],
     ['completed', 'canceled', false],
     ['completed', 'processing', false],
     ['failed', 'returned', false],
@@ -37,10 +39,18 @@ test('a bank return after completed: completed -> returned, never back', () => {
   assert.equal(wd.status, 'returned');
 });
 
-test('completed then failed without a return code is still a return', () => {
+test('completed then failed without a return code is a clawback, not a return', () => {
   const wd = withdrawal({ status: 'completed' });
-  applyPayout(wd, { payoutId: 'p', status: 'failed', failureCode: 'unknown' }, 'poll');
-  assert.equal(wd.status, 'returned');
+  applyPayout(wd, { payoutId: 'p', status: 'failed', failureCode: 'compliance_rejected' }, 'poll');
+  assert.equal(wd.status, 'failed');
+  assert.equal(wd.fundsReturned, undefined, 'never assumed back');
+});
+
+test('a later event fills fundsReturned on a final withdrawal without moving it', () => {
+  const wd = withdrawal({ status: 'failed', failureCode: 'account_invalid' });
+  assert.equal(applyPayout(wd, { payoutId: 'p', status: 'failed', failureCode: 'account_invalid', fundsReturned: true }, 'webhook', 'payout.failed'), true);
+  assert.equal(wd.status, 'failed');
+  assert.equal(wd.fundsReturned, true);
 });
 
 test('out of order: returned arrives before completed', () => {

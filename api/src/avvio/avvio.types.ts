@@ -168,4 +168,7 @@ export interface ApiErrorBody {
   errors?: string[];
   requestId?: string;
   originalIdempotencyKey?: string;
+  /** On BANK_ACCOUNT_ALREADY_LINKED: who already holds the account. */
+  existingRecipientId?: string;
+  existingMethodId?: string;
 }

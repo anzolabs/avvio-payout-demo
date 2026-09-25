@@ -49,6 +49,12 @@ export interface Withdrawal {
   /** Resend attempts while `unknown`, and when the next one is due. */
   attempts?: number;
   nextAttemptAt?: string;
+  /** The API said the outcome of this key is unknown: never resend, only look up. */
+  keyBurned?: boolean;
+  /** Reference lookups made while `unknown`; past a limit a person must look. */
+  lookups?: number;
+  /** Still unknown after many lookups: show support details instead of a spinner. */
+  needsSupport?: boolean;
   status: WithdrawalStatus;
   payoutId?: string;
   approvalId?: string;
@@ -81,6 +87,12 @@ export interface State {
   seenEvents: string[];
   /** `nextSince` from the last feed page. */
   eventsCursor: string | null;
+  /**
+   * requestId -> the payee's method ids on Avvio before that registration was
+   * first sent. Kept so a retry of the same request compares against the
+   * same snapshot, not one that already includes the account it added.
+   */
+  pendingRegistrations?: Record<string, string[]>;
   log: LogLine[];
 }
 
@@ -90,5 +102,6 @@ export const emptyState = (): State => ({
   withdrawals: {},
   seenEvents: [],
   eventsCursor: null,
+  pendingRegistrations: {},
   log: [],
 });

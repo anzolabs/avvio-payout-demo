@@ -8,7 +8,7 @@ import { AccountsService } from '../payees/accounts.service';
 import { PayeesService } from '../payees/payees.service';
 import { LogService } from '../store/log.service';
 import { StateRepository } from '../store/state.repository';
-import { Withdrawal } from '../store/state.types';
+import { Withdrawal, WithdrawalStatus } from '../store/state.types';
 import { applyPayout, toView, transition } from './withdrawal-status';
 
 /** "12.5" → 1250. Amounts are validated as at most two decimals before this. */
@@ -16,6 +16,12 @@ const cents = (s: string): number => {
   const [whole, frac = ''] = s.split('.');
   return Number(whole) * 100 + Number((frac + '00').slice(0, 2));
 };
+
+/** Withdrawals that use up what the payee can withdraw. Final failures give it back. */
+const COMMITTED: WithdrawalStatus[] = ['creating', 'unknown', 'awaiting_approval', 'sent', 'processing', 'completed'];
+
+/** Past this many reference lookups, a person should look at an unknown withdrawal. */
+const SUPPORT_AFTER_LOOKUPS = 20;
 
 /** Creating a withdrawal is one POST /payouts to one of the payee's saved accounts. */
 @Injectable()
@@ -63,9 +69,14 @@ export class WithdrawalsService {
     const account = this.accounts.find(payeeId, destinationAccountId);
     if (!account) throw new ConflictException("choose one of the payee's saved accounts first");
     // Your rule, enforced on your backend: never pay out more than the payee
-    // has earned. Avvio only checks your balance and your limits. Compared in
-    // cents, not floats.
-    if (cents(amount) > cents(payee.available)) throw new BadRequestException(`amount is more than ${payee.name} has available ($${payee.available})`);
+    // has earned, counting what is already on its way or paid. Avvio only
+    // checks your balance and your limits. In cents, not floats, and with no
+    // await between this check and the save below, so two taps cannot both pass.
+    const committed = Object.values(this.repo.state.withdrawals)
+      .filter((w) => w.payeeId === payeeId && COMMITTED.includes(w.status))
+      .reduce((sum, w) => sum + cents(w.amount), 0);
+    const left = cents(payee.available) - committed;
+    if (cents(amount) > left) throw new BadRequestException(`amount is more than ${payee.name} has left to withdraw ($${(Math.max(left, 0) / 100).toFixed(2)})`);
 
     const id = 'wd_' + randomBytes(5).toString('hex');
     const now = new Date().toISOString();
@@ -140,6 +151,9 @@ export class WithdrawalsService {
       if (isUnknownOutcome(e)) {
         // The payout may exist. Not a failure: look it up by reference and, if
         // it is not there, resend with the SAME key. Never a new one.
+        // PAYOUT_OUTCOME_UNKNOWN means the API itself does not know whether this
+        // key paid. Every resend would get the same answer; look it up instead.
+        if (e instanceof AvvioError && e.type === 'PAYOUT_OUTCOME_UNKNOWN') wd.keyBurned = true;
         const retryAfter = e instanceof AvvioError ? e.retryAfter : null;
         const waitS = retryAfter ?? Math.min(60, 5 * 2 ** Math.min(wd.attempts - 1, 4));
         wd.nextAttemptAt = new Date(Date.now() + waitS * 1000).toISOString();
@@ -164,6 +178,7 @@ export class WithdrawalsService {
    */
   async resolve(wd: Withdrawal): Promise<void> {
     if (wd.nextAttemptAt && Date.parse(wd.nextAttemptAt) > Date.now()) return;
+    wd.lookups = (wd.lookups ?? 0) + 1;
     const found = await this.avvio.payoutByReference(wd.reference);
     if (found) {
       applyPayout(wd, found, 'poll');
@@ -171,9 +186,17 @@ export class WithdrawalsService {
       this.log.log('poll', `GET /orders?reference=${wd.reference} → ${found.payoutId} ${found.status}, ${wd.id} now ${wd.status}`);
       return;
     }
-    if (wd.approvalId) {
-      // Held for approval: re-sending would ask for a second approval.
-      wd.nextAttemptAt = new Date(Date.now() + 30_000).toISOString();
+    if (wd.approvalId || wd.keyBurned) {
+      // Held for approval (a resend would ask for a second one), or a key the
+      // API cannot vouch for (a resend gets the same answer): keep looking,
+      // less often, and past a limit hand it to a person.
+      if (wd.lookups >= SUPPORT_AFTER_LOOKUPS && !wd.needsSupport) {
+        wd.needsSupport = true;
+        this.log.log('poll', `${wd.id} (${wd.reference}) still unknown after ${wd.lookups} lookups; needs a person. Quote the reference to Avvio support`);
+      }
+      const waitS = wd.needsSupport ? 600 : 30;
+      wd.nextAttemptAt = new Date(Date.now() + waitS * 1000).toISOString();
+      this.repo.save();
       return;
     }
     this.log.log('poll', `no payout with reference ${wd.reference} yet; resending ${wd.id} with its original Idempotency-Key`);

@@ -18,6 +18,8 @@ export class CreateWithdrawalDto {
 
   /** The destination amount the payee was shown, as a decimal string. */
   @IsOptional()
-  @Matches(/^\d{1,12}(\.\d{1,2})?$/, { message: 'expectDestination must be a decimal string' })
+  // The same rule the API applies: up to six decimals (a quote's destination
+  // amount is not always rounded to two).
+  @Matches(/^\d{1,15}(\.\d{1,6})?$/, { message: 'expectDestination must be a decimal string' })
   expectDestination?: string;
 }

@@ -22,7 +22,7 @@ export class AvvioError extends Error {
 }
 
 /** Answers that mean "the payout may or may not exist": never mint a new key. */
-const UNKNOWN_TYPES = new Set(['PAYOUT_OUTCOME_UNKNOWN', 'IDEMPOTENCY_KEY_REQUEST_IN_PROGRESS']);
+const UNKNOWN_TYPES = new Set(['PAYOUT_OUTCOME_UNKNOWN', 'IDEMPOTENCY_KEY_REQUEST_IN_PROGRESS', 'IDEMPOTENCY_KEY_CONFLICT']);
 
 /**
  * True when a money-moving call's outcome is unknown: a timeout or network

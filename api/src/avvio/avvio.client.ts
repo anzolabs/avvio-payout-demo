@@ -6,7 +6,9 @@ import {
   EventsPage, IndicativeQuote, PaymentMethodInput, Payout, PendingApproval, Policy,
 } from './avvio.types';
 
-const TIMEOUT_MS = 15_000;
+// Longer than the server's own 30 s rail timeout, so a slow send is answered
+// rather than abandoned.
+const TIMEOUT_MS = 35_000;
 
 export interface ApiResponse<T> {
   status: number;
@@ -113,7 +115,7 @@ export class AvvioClient {
     if (opts.idempotencyKey) headers['Idempotency-Key'] = opts.idempotencyKey;
 
     // A call that hangs is an unknown outcome, not a slow success: give up
-    // after 15 s and let the caller resolve it with the same key.
+    // after 35 s and let the caller resolve it with the same key.
     const res = await fetch(this.config.avvio.base + path, {
       method,
       headers,
