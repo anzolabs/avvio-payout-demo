@@ -4,9 +4,12 @@ Send money to a bank account in Mexico through the
 [Avvio Payouts API](https://docs.avvio.xyz), and watch every API call your
 backend makes along the way.
 
-### **[Try it live → payoutdemo.avvio.xyz](https://payoutdemo.avvio.xyz)**
+<p>
+  <a href="https://payoutdemo.avvio.xyz"><img alt="Try the live demo" src="https://img.shields.io/badge/Try_the_live_demo_%E2%86%92-121A02?style=for-the-badge"></a>
+</p>
 
-No sign-up, no key. It runs on the Avvio sandbox: real API calls, test money.
+No sign-up, no key: **[payoutdemo.avvio.xyz](https://payoutdemo.avvio.xyz)** runs on the Avvio
+sandbox, with real API calls and test money.
 
 ## What you'll see
 
