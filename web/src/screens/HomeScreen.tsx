@@ -39,7 +39,7 @@ export function HomeScreen({ payee, server, initialAmount, onWithdraw }: Props) 
         {custom && !valid && <p className="field-err">Enter an amount up to {money(payee.left)}</p>}
       </div>
       <p className="muted">Next: choose the account to pay into, then confirm the price.</p>
-      {!server.configured && <div className="note error">{server.bootError ?? 'Backend is not configured.'}</div>}
+      {(!server.configured || server.bootError) && <div className="note error">{server.bootError ?? 'Backend is not configured.'}</div>}
     </Screen>
   );
 }

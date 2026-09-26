@@ -1,21 +1,45 @@
-# Avvio payouts demo
+# Avvio Payouts Demo
 
-A working example of paying people through the Avvio API. It registers a
-payee's bank account, sends them a payout, and tracks it until the money lands,
-or until the bank sends it back.
+A complete, runnable example of paying people through the
+[Avvio Payouts API](https://docs.avvio.xyz). Clone it, add a sandbox key, and
+send your first payout in about five minutes.
 
-This repo is the **partner side** of an integration: what you build on your
-own systems. It has two parts:
+## Overview
 
-- **`api/`**: your backend (NestJS + TypeScript). It holds the API key and
-  makes every call to Avvio.
-- **`web/`**: your app (React + Vite), shown in a phone frame next to a console
-  that logs every call the backend makes. It never sees the API key.
+This repo is what **you** build on your side of an Avvio integration: a
+backend that holds your API key and talks to Avvio, and an app your users
+tap. It runs against the real Avvio sandbox, so every call, status change and
+webhook is the genuine article. Only the money is test money.
 
-**Contents**
+- **`api/`**: your backend (NestJS + TypeScript). The only code that holds the
+  key or calls Avvio.
+- **`web/`**: your app (React + Vite), shown in a phone frame next to a live
+  console of every call the backend makes.
 
-1. [What you need](#1-what-you-need)
-2. [Run it locally](#2-run-it-locally)
+## Features
+
+**Payees and bank accounts**
+- Bank form built from the API's field list, so no country's fields are hardcoded
+- Register a payee once and add or remove accounts; you store IDs, never account numbers
+
+**Payouts**
+- Indicative price before confirming, and a rate guard when sending
+- Idempotent sends: a double tap or a retry never pays twice
+- Safe recovery when the outcome is unknown (timeouts, 5xx, 429)
+
+**Tracking and reconciliation**
+- Signed webhooks, verified and deduplicated
+- Events-feed reconciliation from a saved cursor
+- A forward-only status machine that handles bank returns after `completed`
+
+**Works on first run**
+- Tops up your sandbox balance on start when it's low
+- Clear startup errors for a wrong key, a missing permission or a wrong org ID
+
+## Contents
+
+1. [Prerequisites](#1-prerequisites)
+2. [Installation and setup](#2-installation-and-setup)
 3. [Your `.env`, explained](#3-your-env-explained)
 4. [Try the outcomes](#4-try-the-outcomes)
 5. [Receive webhooks (optional)](#5-receive-webhooks-optional)
@@ -24,13 +48,12 @@ own systems. It has two parts:
 8. [Troubleshooting](#8-troubleshooting)
 9. [Tests, development and layout](#9-tests-development-and-layout)
 
-For the full reasoning behind each step, see
-**[INTEGRATION_GUIDE.md](INTEGRATION_GUIDE.md)** and the API reference at
-**https://docs.avvio.xyz**.
+For the reasoning behind each step, read
+**[INTEGRATION_GUIDE.md](INTEGRATION_GUIDE.md)**.
 
 ---
 
-## 1. What you need
+## 1. Prerequisites
 
 | | Where to get it |
 |---|---|
@@ -38,24 +61,57 @@ For the full reasoning behind each step, see
 | **An Avvio dashboard login** | https://business.avvio.xyz. Ask your Avvio contact for an invite if you don't have one. |
 | **A sandbox API key** (`avvio_test_…`) | Dashboard → switch the org menu to **Sandbox** → **Developer** → create a key with **Transact** permission. It is shown **once**, so copy it straight into `.env`. |
 | **Your organization ID** | The same **Developer** page, in the header. It is the same ID in sandbox and live. |
-| **Sandbox funds** | Press **Fund sandbox $1,000** in the demo's console, or ask your Avvio contact. It's test money. |
 
 The sandbox is a full copy of the real API with test money. Nothing you do in
 it reaches a real bank.
 
-## 2. Run it locally
+## 2. Installation and setup
+
+### 1. Clone the repository
 
 ```bash
 git clone https://github.com/anzolabs/avvio-payout-demo.git
 cd avvio-payout-demo
-cp .env.example .env        # then fill in AVVIO_API_KEY and AVVIO_ORG_ID
+```
+
+### 2. Install dependencies
+
+```bash
 npm install
+```
+
+### 3. Configure environment variables
+
+```bash
+cp .env.example .env
+```
+
+Open `.env` and set the two required values:
+
+```env
+# Your sandbox key
+AVVIO_API_KEY=avvio_test_xxxxxxxxxxxxxxxx
+# From the Developer page header
+AVVIO_ORG_ID=your_org_id
+```
+
+Every other variable is optional; see [section 3](#3-your-env-explained).
+
+### 4. Build and start
+
+```bash
 npm run build
 npm start
 ```
 
-Open **http://localhost:4300**. The console on the right should show your
-balance. Then send your first payout:
+Open **http://localhost:4300**. On start the backend checks your key and org,
+and tops up your sandbox balance if it's below $1,500. The terminal and the
+console panel show what it did. If something is wrong, the app says what to
+fix; see [Troubleshooting](#8-troubleshooting).
+
+### 5. Send your first payout
+
+In the phone:
 
 1. Enter an amount and tap **Withdraw**.
 2. Tap **+ Add a new account** and enter CLABE `012180000000070003`.
@@ -78,13 +134,6 @@ commit it. Real environment variables override it.
 | `PORT` | No | `4300` | The port the demo listens on. |
 | `HOST` | No | `127.0.0.1` | The address it listens on. Keep it on loopback; see the note below. |
 | `DATA_FILE` | No | `api/data/state.json` | Where the demo keeps its state (payees, accounts, withdrawals). Delete it to start over. |
-
-A minimal `.env`:
-
-```bash
-AVVIO_API_KEY=avvio_test_xxxxxxxxxxxxxxxx
-AVVIO_ORG_ID=your_org_id
-```
 
 > **Keep your key on the server.** It can send money from your balance. Store
 > it in a secret manager in your real systems, never in a mobile app, browser
@@ -288,7 +337,8 @@ Use your own backend for live. This demo refuses live keys on purpose.
 | `backend is not configured: set AVVIO_API_KEY and AVVIO_ORG_ID` | One of the two is missing from `.env`, or `.env` isn't in the repo root. Fix it and restart. |
 | `401` from Avvio | The key is wrong, revoked, or copied with a stray space. Create a new one on the Developer page. |
 | `403` from Avvio | The key doesn't have **Transact** permission, or the org ID belongs to a different organization. |
-| Insufficient balance | Press **Fund sandbox $1,000** in the console. |
+| `cannot reach Avvio: …` at the top of the app | The message names the cause. It's usually the key or the org ID in `.env`; fix it and restart. |
+| Insufficient balance | You've spent the test money. Restart to top up again, or press **Fund sandbox $1,000** in the console. |
 | `This demo only serves /webhooks/* to other hosts` | Open the app at `http://localhost:4300`, not through the tunnel URL or your LAN IP. |
 | `503 webhook secret not configured` in the log | Webhooks are arriving but `AVVIO_WEBHOOK_SECRET` is empty. Add it and restart. |
 | Webhooks never arrive | The tunnel URL changed or stopped. Restart it and update the endpoint in the dashboard. The demo still catches up from the events feed. |
