@@ -11,39 +11,6 @@ backend makes along the way.
 No sign-up, no key: **[payoutdemo.avvio.xyz](https://payoutdemo.avvio.xyz)** runs on the Avvio
 sandbox, with real API calls and test money.
 
-## What you'll see
-
-The page is split in two:
-
-- **Your app, on a phone.** "Payday" stands in for your product: someone with
-  funds available sends money to family in Mexico.
-- **Your backend, beside it.** Every request it makes to Avvio, as it happens:
-  method, path, status and latency. Click one to see the request and response
-  bodies, the `Idempotency-Key` and the `x-request-id`.
-
-Try one payout, about a minute end to end:
-
-1. Tap **Send money**, then add a recipient. The name is filled in; under
-   **Sandbox**, pick the account ending `0003`.
-2. Choose an amount. You send USD, they receive MXN, priced live.
-3. Review, send, and watch it go **Sent → Processing → Paid**, then **Returned
-   by the bank**. A payment that is paid and later returned is the case your
-   own ledger most needs to handle.
-
-The sandbox account you pick decides what happens to every payout sent to it:
-
-| Account (CLABE) | What happens |
-|---|---|
-| `012180000000070003` | Completes, then the **bank returns it** about 30 seconds later. |
-| `012180000000000002` | Stays `processing`, then completes at about 60 s. |
-| `012180000000030001` | Fails with `account_invalid`; the money comes back. |
-| `012180000000045669` | Completes normally. |
-
-The code behind the demo is this repo: **`api/`** is the backend (NestJS +
-TypeScript, the only code that holds the key or calls Avvio) and **`web/`** is
-the app (React + Vite). For the reasoning behind each step, read
-**[INTEGRATION_GUIDE.md](INTEGRATION_GUIDE.md)**.
-
 ## Build it with an AI agent
 
 Connect your coding agent to Avvio over MCP with your sandbox key and
@@ -76,6 +43,39 @@ correctly; money-moving tools need an explicit `confirm: true`. Run its
 **`sandbox_walkthrough`** prompt to watch one payout get paid and then returned,
 or **`integrate_payouts`** to have it plan and build the integration in your
 codebase from this repo. `avvio-docs` searches the documentation.
+
+## What you'll see
+
+The page is split in two:
+
+- **Your app, on a phone.** "Payday" stands in for your product: someone with
+  funds available sends money to family in Mexico.
+- **Your backend, beside it.** Every request it makes to Avvio, as it happens:
+  method, path, status and latency. Click one to see the request and response
+  bodies, the `Idempotency-Key` and the `x-request-id`.
+
+Try one payout, about a minute end to end:
+
+1. Tap **Send money**, then add a recipient. The name is filled in; under
+   **Sandbox**, pick the account ending `0003`.
+2. Choose an amount. You send USD, they receive MXN, priced live.
+3. Review, send, and watch it go **Sent → Processing → Paid**, then **Returned
+   by the bank**. A payment that is paid and later returned is the case your
+   own ledger most needs to handle.
+
+The sandbox account you pick decides what happens to every payout sent to it:
+
+| Account (CLABE) | What happens |
+|---|---|
+| `012180000000070003` | Completes, then the **bank returns it** about 30 seconds later. |
+| `012180000000000002` | Stays `processing`, then completes at about 60 s. |
+| `012180000000030001` | Fails with `account_invalid`; the money comes back. |
+| `012180000000045669` | Completes normally. |
+
+The code behind the demo is this repo: **`api/`** is the backend (NestJS +
+TypeScript, the only code that holds the key or calls Avvio) and **`web/`** is
+the app (React + Vite). For the reasoning behind each step, read
+**[INTEGRATION_GUIDE.md](INTEGRATION_GUIDE.md)**.
 
 ## Build it into your own backend
 
