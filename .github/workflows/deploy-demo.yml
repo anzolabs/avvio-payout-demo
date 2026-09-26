@@ -27,7 +27,8 @@ jobs:
         env:
           KEY: ${{ secrets.DEMO_AVVIO_API_KEY }}
         run: case "$KEY" in avvio_test_*) ;; *) echo "DEMO_AVVIO_API_KEY must be an avvio_test_ key"; exit 1;; esac
-      - run: npx wrangler deploy
+      # immediate: the single shared container is swapped now, not whenever it next sleeps.
+      - run: npx wrangler deploy --containers-rollout=immediate
       - name: Secrets
         env:
           KEY: ${{ secrets.DEMO_AVVIO_API_KEY }}

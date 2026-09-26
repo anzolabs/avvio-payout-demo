@@ -299,3 +299,17 @@ h2.title { margin: 8px 0 14px; font-weight: 500; font-size: 24px; line-height: 1
 .phone .tabs button { display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 0; padding: 0; border-radius: 0; background: none; font: 500 10px var(--ios); color: #999; }
 .phone .tabs button.active { background: none; color: var(--ios-tint); }
 .phone .tabs svg { width: 26px; height: 26px; fill: currentColor; }
+
+/* the console's setup summary: config pills, the demo note, the test accounts, the balance */
+.cpills { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.cpill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; background: rgba(255, 255, 255, .08); color: var(--c-tx); font: 600 12px var(--font); }
+.cpill.ok::before, .cpill.warn::before, .cpill.bad::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--c-ok); }
+.cpill.warn::before { background: var(--c-warn); }
+.cpill.bad::before { background: var(--c-bad); }
+.ctext { margin: 0 0 12px; font-size: 13px; line-height: 1.5; color: var(--c-dim); }
+.ctext b { color: var(--c-tx); }
+.ctext a { color: var(--c-tx); }
+.outcomes { margin-top: 6px; border-collapse: collapse; font-size: 12px; }
+.outcomes td { padding: 2px 14px 2px 0; vertical-align: top; }
+.outcomes code { font: 12px var(--mono); color: var(--c-tx); }
+.cbtn { border: 0; border-radius: 999px; padding: 4px 12px; background: rgba(255, 255, 255, .1); color: var(--c-tx); font: 700 12px var(--font); cursor: pointer; }
