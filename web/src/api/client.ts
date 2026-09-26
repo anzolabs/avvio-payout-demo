@@ -43,5 +43,5 @@ export const api = {
   fundSandbox: () => request<{ balance: string }>('POST', '/api/sandbox/fund'),
 };
 
-export const money = (s: string | number): string => '$' + Number(s).toFixed(2);
+export const money = (s: string | number): string => '$' + Number(s).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 export const hhmmss = (iso: string): string => new Date(iso).toTimeString().slice(0, 8);

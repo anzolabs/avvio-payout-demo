@@ -24,3 +24,11 @@ test('log lines are attributed by the ids they name', () => {
   assert.equal(visitorOfId('GET /orders/x → completed, wd_ab12cd34ef now completed'), '');
   assert.equal(visitorOfId('backfilled 12 event(s); cursor 2026-09-26'), '');
 });
+
+test('the console never shows a full account number', async () => {
+  const { mask } = await import('../src/store/log.service');
+  assert.deepEqual(mask({ method: { recipientDetails: { clabeNumber: '012180000000070003' } }, amount: '25.00' }), {
+    method: { recipientDetails: { clabeNumber: '····0003' } },
+    amount: '25.00',
+  });
+});

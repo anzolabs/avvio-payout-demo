@@ -1,18 +1,21 @@
 import { useEffect, useState } from 'react';
 import { api, money } from '../api/client';
-import { Account, Quote } from '../api/types';
+import { Account, Payee, Quote } from '../api/types';
 import { BackLink, Screen } from '../components/Screen';
 
 interface Props {
   amount: string;
   account: Account;
+  payee: Payee;
   /** requestId identifies this tap; expectDestination is what the payee was shown. */
   onSend: (requestId: string, expectDestination?: string) => Promise<void>;
   onBack: () => void;
 }
 
-/** Review: the price, the account, one button. The figures are an estimate. */
-export function ConfirmScreen({ amount, account, onSend, onBack }: Props) {
+const fmt = (n: string | number) => Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+/** Review: what arrives first, then how it is priced, then one button. */
+export function ConfirmScreen({ amount, account, payee, onSend, onBack }: Props) {
   const [quote, setQuote] = useState<Quote | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -37,7 +40,7 @@ export function ConfirmScreen({ amount, account, onSend, onBack }: Props) {
     }
   };
 
-  const Row = ({ k, v }: { k: string; v: string }) => <div className="row summary"><span className="muted">{k}</span><span>{v}</span></div>;
+  const Row = ({ k, v }: { k: string; v: string }) => <div className="row summary"><span className="muted">{k}</span><span className="num">{v}</span></div>;
 
   const footer = (
     <>
@@ -48,16 +51,19 @@ export function ConfirmScreen({ amount, account, onSend, onBack }: Props) {
 
   return (
     <Screen footer={footer}>
-      <h3>Review</h3>
+      <h2 className="title">Review</h2>
+      <div className="receive">
+        <span className="eyebrow">{account.bank ?? 'The bank'} receives about</span>
+        <div className="big num">{quote ? `${fmt(quote.destinationAmount.amount)} ${quote.destinationAmount.currency}` : '…'}</div>
+        <span className="muted">into {payee.name}'s account ····{account.last4}</span>
+      </div>
       <div className="card">
-        <Row k="You withdraw" v={money(amount)} />
+        <Row k="You send" v={money(amount)} />
         {quote && <Row k="Fee" v={money(quote.fee.amount)} />}
         {quote && <Row k="Rate" v={`1 USD = ${Number(quote.rate).toFixed(4)} ${quote.destinationAmount.currency}`} />}
-        {quote && <Row k="You receive" v={`≈ ${Number(quote.destinationAmount.amount).toLocaleString()} ${quote.destinationAmount.currency}`} />}
-        <Row k="Into" v={`····${account.last4}`} />
-        {!quote && !error && <p className="muted">Pricing…</p>}
-        <p className="muted">Estimated. The rate is set when you send.</p>
+        {!quote && !error && <p className="muted">Getting the price…</p>}
       </div>
+      <p className="muted">An estimate. The rate is fixed when you send, and the payout is refused if it has moved more than 2% from this.</p>
       {error && <div className="note error">{error}</div>}
     </Screen>
   );

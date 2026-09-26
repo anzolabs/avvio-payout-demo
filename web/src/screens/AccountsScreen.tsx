@@ -14,7 +14,9 @@ interface Props {
   onBack: () => void;
 }
 
-/** Pay into: the payee's saved accounts (by last4 only), or a new one. */
+export const bankInitials = (bank: string | null) => (bank ?? 'Bank').replace(/[^A-Za-z ]/g, '').split(' ').map((w) => w[0]).join('').slice(0, 3);
+
+/** Pay into: the payee's saved accounts (bank and last four only), or a new one. */
 export function AccountsScreen({ accounts, selected, amount, onSelect, onAdd, onRemove, onContinue, onBack }: Props) {
   const [removing, setRemoving] = useState<string | null>(null);
 
@@ -27,24 +29,23 @@ export function AccountsScreen({ accounts, selected, amount, onSelect, onAdd, on
 
   return (
     <Screen footer={footer}>
-      <h3>Pay {money(amount)} into</h3>
-      {accounts.length === 0 && <p className="muted">No account saved yet. Add the one to pay into; it is saved for next time.</p>}
+      <h2 className="title">Send <span className="num">{money(amount)}</span> to</h2>
       {accounts.map((a) => (
-        <label key={a.id} className={'choice' + (a.destinationAccountId === selected ? ' on' : '')}>
-          <input type="radio" name="account" checked={a.destinationAccountId === selected} onChange={() => onSelect(a.destinationAccountId)} />
-          <span className="who">····{a.last4}</span>
-          <span className="acct">{a.currency} · added {new Date(a.registeredAt).toLocaleDateString()}</span>
+        <div key={a.id} className={'account' + (a.destinationAccountId === selected ? ' on' : '')} role="radio" aria-checked={a.destinationAccountId === selected} tabIndex={0}
+          onClick={() => onSelect(a.destinationAccountId)} onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onSelect(a.destinationAccountId)}>
+          <span className="logo">{bankInitials(a.bank)}</span>
+          <span className="who"><strong>{a.bank ?? 'Bank account'} ····{a.last4}</strong><span className="muted">{a.currency} · saved {new Date(a.registeredAt).toLocaleDateString()}</span></span>
           <button
             type="button"
             className="link"
             disabled={removing === a.id}
-            onClick={async (e) => { e.preventDefault(); if (!window.confirm(`Remove the account ending ${a.last4 ?? ''}?`)) return; setRemoving(a.id); try { await onRemove(a.id); } finally { setRemoving(null); } }}
+            onClick={async (e) => { e.stopPropagation(); if (!window.confirm(`Remove the account ending ${a.last4 ?? ''}?`)) return; setRemoving(a.id); try { await onRemove(a.id); } finally { setRemoving(null); } }}
           >
             {removing === a.id ? '…' : 'Remove'}
           </button>
-        </label>
+        </div>
       ))}
-      <button className="cta secondary" onClick={onAdd}>+ Add a new account</button>
+      <button className="cta secondary" onClick={onAdd}>Add a bank account</button>
     </Screen>
   );
 }

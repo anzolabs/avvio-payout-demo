@@ -14,6 +14,7 @@ export interface AccountView {
   id: string;
   destinationAccountId: string;
   last4: string | null;
+  bank: string | null;
   currency: string;
   registeredAt: string;
 }
@@ -101,7 +102,7 @@ export class AccountsService {
       this.log.log('api', `registered for ${payeeId}, but could not tell which of its accounts is the one just sent; refused to guess`);
       throw new HttpException({ message: 'Registered, but it is ambiguous which saved account this is. Remove duplicate accounts for this payee and try again.' }, 409);
     }
-    const account: Account = { methodId: m.id, destinationAccountId: m.destinationAccountId, last4: m.last4 ?? null, currency: this.config.currency, registeredAt: new Date().toISOString() };
+    const account: Account = { methodId: m.id, destinationAccountId: m.destinationAccountId, last4: m.last4 ?? null, bank: bankOf(details), currency: this.config.currency, registeredAt: new Date().toISOString() };
     state.recipients[payeeId] = beneficiary.id;
     state.accounts[payeeId] = [...(state.accounts[payeeId] ?? []).filter((a) => a.destinationAccountId !== account.destinationAccountId), account];
     this.repo.save();
@@ -184,6 +185,7 @@ const toView = (a: Account): AccountView => ({
   id: a.methodId,
   destinationAccountId: a.destinationAccountId,
   last4: a.last4,
+  bank: a.bank ?? null,
   currency: a.currency,
   registeredAt: a.registeredAt,
 });
@@ -214,4 +216,16 @@ export function registeredMethod(b: Beneficiary, before: Set<string>, details: R
 function sentTail(details: Record<string, string>): string | null {
   const digits = Object.values(details).map((v) => v.replace(/\D/g, '')).filter((v) => v.length >= 4);
   return digits.length ? digits.sort((x, y) => y.length - x.length)[0].slice(-4) : null;
+}
+
+// ponytail: the banks behind most CLABEs; an unknown prefix just shows no name. Banxico's full list if it matters.
+const CLABE_BANKS: Record<string, string> = {
+  '002': 'Banamex', '012': 'BBVA México', '014': 'Santander', '021': 'HSBC', '030': 'Banbajío', '036': 'Inbursa',
+  '044': 'Scotiabank', '058': 'Banregio', '072': 'Banorte', '127': 'Banco Azteca', '137': 'BanCoppel', '646': 'STP', '722': 'Mercado Pago',
+};
+
+/** The bank a CLABE belongs to, from its first three digits. */
+export function bankOf(details: Record<string, string>): string | null {
+  const clabe = Object.values(details).map((v) => v.replace(/\D/g, '')).find((v) => v.length === 18);
+  return clabe ? CLABE_BANKS[clabe.slice(0, 3)] ?? null : null;
 }
