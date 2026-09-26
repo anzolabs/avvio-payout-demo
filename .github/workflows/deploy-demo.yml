@@ -27,8 +27,10 @@ jobs:
         env:
           KEY: ${{ secrets.DEMO_AVVIO_API_KEY }}
         run: case "$KEY" in avvio_test_*) ;; *) echo "DEMO_AVVIO_API_KEY must be an avvio_test_ key"; exit 1;; esac
-      # immediate: the single shared container is swapped now, not whenever it next sleeps.
-      - run: npx wrangler deploy --containers-rollout=immediate --var DEPLOY_ID:${{ github.sha }}
+      # A per-deploy token for the Worker's restart route (see worker.js).
+      - name: Mint restart token
+        run: echo "RESTART_TOKEN=$(openssl rand -hex 24)" >> "$GITHUB_ENV"
+      - run: npx wrangler deploy --containers-rollout=immediate
       - name: Secrets
         env:
           KEY: ${{ secrets.DEMO_AVVIO_API_KEY }}
@@ -36,3 +38,37 @@ jobs:
         run: |
           printf '%s' "$KEY" | npx wrangler secret put AVVIO_API_KEY
           printf '%s' "$ORG" | npx wrangler secret put AVVIO_ORG_ID
+          printf '%s' "$RESTART_TOKEN" | npx wrangler secret put RESTART_TOKEN
+      # A running container keeps the image it started with, even after a
+      # rollout. Wait for the rollout, restart the container, then prove the
+      # site serves THIS build. A deploy that did not land fails here.
+      - name: Wait for the new image to roll out
+        run: |
+          api="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/containers/applications"
+          auth="Authorization: Bearer $CLOUDFLARE_API_TOKEN"
+          id=$(curl -sf "$api" -H "$auth" | jq -r '.result[] | select(.name == "avvio-payout-demo-payoutdemo") | .id')
+          for i in $(seq 1 60); do
+            version=$(curl -sf "$api/$id" -H "$auth" | jq -r '.result.version')
+            rollout=$(curl -sf "$api/$id/rollouts" -H "$auth" | jq -r --argjson v "$version" '[.result[] | select(.target_version == $v)][0].status // "none"')
+            echo "version $version rollout $rollout"
+            [ "$rollout" = completed ] && exit 0
+            sleep 5
+          done
+          echo "rollout did not complete"; exit 1
+      - name: Restart the container on the new image
+        run: |
+          curl -sf -X POST https://payoutdemo.avvio.xyz/__deploy/restart -H "Authorization: Bearer $RESTART_TOKEN"
+      - name: Build the web app to know what the site should serve
+        working-directory: .
+        run: npm ci --no-audit --no-fund && npm run build -w web
+      - name: Verify the live site serves this build
+        working-directory: .
+        run: |
+          want=$(grep -o 'assets/index-[^"]*\.js' web/dist/index.html)
+          for i in $(seq 1 36); do
+            got=$(curl -s "https://payoutdemo.avvio.xyz/?deploy=$GITHUB_SHA" | grep -o 'assets/index-[^"]*\.js' || true)
+            echo "want $want got ${got:-nothing}"
+            [ "$got" = "$want" ] && exit 0
+            sleep 5
+          done
+          echo "the live site is not serving this build"; exit 1

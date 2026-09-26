@@ -34,7 +34,9 @@ a { color: var(--ink); }
 .intro h1 { margin: 10px 0 12px; font-weight: 500; font-size: clamp(30px, 3.6vw, 46px); line-height: .98; letter-spacing: -.02em; }
 .intro p { margin: 0; max-width: 60ch; color: var(--tx-dim); font-size: 16px; }
 .signed-in { display: flex; flex-direction: column; gap: 6px; min-width: 220px; }
-.signed-in select { min-height: 40px; padding: 0 12px; border-radius: 999px; border: 0; box-shadow: 0 0 0 1px var(--line) inset; background: var(--paper); font: 500 14px var(--font); color: var(--ink); }
+.signed-in select { appearance: none; -webkit-appearance: none; height: 38px; padding: 0 38px 0 14px; border: 0; border-radius: var(--r-xs); box-shadow: 0 0 0 1px var(--line) inset; font: 500 14px var(--font); color: var(--ink); cursor: pointer;
+  background: var(--paper) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%23121A02' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 14px center; }
+.signed-in select:focus { outline: none; box-shadow: 0 0 0 2px var(--ink) inset; }
 
 .stage { display: grid; grid-template-columns: calc(448px * var(--s, 1)) minmax(0, 1fr); gap: clamp(24px, 4vw, 48px); align-items: start; }
 .col-app { position: sticky; top: 16px; display: flex; flex-direction: column; gap: 16px; align-items: center; }
