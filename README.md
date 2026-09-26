@@ -8,8 +8,6 @@ backend makes along the way.
 
 No sign-up, no key. It runs on the Avvio sandbox: real API calls, test money.
 
-[![The demo: a payouts app on the left, every Avvio API call on the right](docs/demo.jpg)](https://payoutdemo.avvio.xyz)
-
 ## What you're looking at
 
 - **On the left, your app.** "Payday" stands in for your product: someone
