@@ -1,208 +1,61 @@
 # Avvio Payouts Demo
 
-A complete, runnable example of paying people through the
-[Avvio Payouts API](https://docs.avvio.xyz). Clone it, add a sandbox key, and
-send your first payout in about five minutes.
+Send money to a bank account in Mexico through the
+[Avvio Payouts API](https://docs.avvio.xyz), and watch every API call your
+backend makes along the way.
 
-**Try it live, no setup: https://payoutdemo.avvio.xyz**. It's the same app
-running on the Avvio sandbox, with test money and test accounts only.
+### **[Try it live → payoutdemo.avvio.xyz](https://payoutdemo.avvio.xyz)**
 
-## Overview
+No sign-up, no key. It runs on the Avvio sandbox: real API calls, test money.
 
-This repo is what **you** build on your side of an Avvio integration: a
-backend that holds your API key and talks to Avvio, and an app your users
-tap. It runs against the real Avvio sandbox, so every call, status change and
-webhook is the genuine article. Only the money is test money.
+[![The demo: a payouts app on the left, every Avvio API call on the right](docs/demo.jpg)](https://payoutdemo.avvio.xyz)
 
-- **`api/`**: your backend (NestJS + TypeScript). The only code that holds the
-  key or calls Avvio.
-- **`web/`**: your app (React + Vite), shown in a phone frame next to a live
-  console of every call the backend makes.
+## What you're looking at
 
-## Features
+- **On the left, your app.** "Payday" stands in for your product: someone
+  with funds available sends money to family in Mexico. Add a recipient, pick
+  an amount (you send USD, they receive MXN, priced live), review, and track it
+  until it lands.
+- **On the right, your backend.** Every request it makes to Avvio, as it
+  happens: method, path, status and latency. Click one to see the request and
+  response bodies, the `Idempotency-Key` and the `x-request-id`.
 
-**Payees and bank accounts**
-- Bank form built from the API's field list, so no country's fields are hardcoded
-- Register a payee once and add or remove accounts; you store IDs, never account numbers
-
-**Payouts**
-- Indicative price before confirming, and a rate guard when sending
-- Idempotent sends: a double tap or a retry never pays twice
-- Safe recovery when the outcome is unknown (timeouts, 5xx, 429)
-
-**Tracking and reconciliation**
-- Signed webhooks, verified and deduplicated
-- Events-feed reconciliation from a saved cursor
-- A forward-only status machine that handles bank returns after `completed`
-
-**Works on first run**
-- Tops up your sandbox balance on start when it's low
-- Clear startup errors for a wrong key, a missing permission or a wrong org ID
-
-## Contents
-
-1. [Prerequisites](#1-prerequisites)
-2. [Installation and setup](#2-installation-and-setup)
-3. [Your `.env`, explained](#3-your-env-explained)
-4. [Try the outcomes](#4-try-the-outcomes)
-5. [Receive webhooks (optional)](#5-receive-webhooks-optional)
-6. [Build it into your own backend](#6-build-it-into-your-own-backend)
-7. [Going live](#7-going-live)
-8. [Troubleshooting](#8-troubleshooting)
-9. [Tests, development and layout](#9-tests-development-and-layout)
-
-For the reasoning behind each step, read
-**[INTEGRATION_GUIDE.md](INTEGRATION_GUIDE.md)**.
-
----
-
-## 1. Prerequisites
-
-| | Where to get it |
-|---|---|
-| **Node 18 or newer** | `node -v` to check. |
-| **An Avvio dashboard login** | https://business.avvio.xyz. Ask your Avvio contact for an invite if you don't have one. |
-| **A sandbox API key** (`avvio_test_…`) | Dashboard → switch the org menu to **Sandbox** → **Developer** → create a key with **Transact** permission. It is shown **once**, so copy it straight into `.env`. |
-| **Your organization ID** | The same **Developer** page, in the header. It is the same ID in sandbox and live. |
-
-The sandbox is a full copy of the real API with test money. Nothing you do in
-it reaches a real bank.
-
-## 2. Installation and setup
-
-### 1. Clone the repository
-
-```bash
-git clone https://github.com/anzolabs/avvio-payout-demo.git
-cd avvio-payout-demo
-```
-
-### 2. Install dependencies
-
-```bash
-npm install
-```
-
-### 3. Configure environment variables
-
-```bash
-cp .env.example .env
-```
-
-Open `.env` and set the two required values:
-
-```env
-# Your sandbox key
-AVVIO_API_KEY=avvio_test_xxxxxxxxxxxxxxxx
-# From the Developer page header
-AVVIO_ORG_ID=your_org_id
-```
-
-Every other variable is optional; see [section 3](#3-your-env-explained).
-
-### 4. Build and start
-
-```bash
-npm run build
-npm start
-```
-
-Open **http://localhost:4300**. On start the backend checks your key and org,
-and tops up your sandbox balance if it's below $1,500. The terminal and the
-console panel show what it did. If something is wrong, the app says what to
-fix; see [Troubleshooting](#8-troubleshooting).
-
-### 5. Send your first payout
-
-In the phone:
-
-1. Enter an amount and tap **Withdraw**.
-2. Tap **+ Add a new account** and enter CLABE `012180000000070003`.
-3. Tap **Continue**, then confirm. The payout completes after about 10 seconds.
-4. Keep watching. About 30 seconds later the bank **returns** it and the money
-   comes back. This is the case your own ledger most needs to handle.
-
-## 3. Your `.env`, explained
-
-`.env` sits in the repo root, next to `package.json`. It is git-ignored: never
-commit it. Real environment variables override it.
-
-| Variable | Required | Default | What it is |
-|---|---|---|---|
-| `AVVIO_API_KEY` | **Yes** | none | Your sandbox key, starting `avvio_test_`. The key decides the environment: a test key only ever reaches the sandbox. The demo **refuses to start with a live key** (`avvio_live_…`). |
-| `AVVIO_ORG_ID` | **Yes** | none | Your organization ID from the Developer page. It's part of most API paths. |
-| `AVVIO_BASE_URL` | No | `https://api.avvio.xyz/business/api/v1` | One URL for sandbox and live. Don't change it unless Avvio asks you to. |
-| `AVVIO_WEBHOOK_SECRET` | No | empty | The `whsec_…` secret of your webhook endpoint (see [section 5](#5-receive-webhooks-optional)). Leave it empty and the demo learns outcomes by polling instead, a little later. |
-| `DESTINATION_CURRENCY` | No | `MXN` | The currency payees receive. MXN is the sandbox currency with test accounts. |
-| `PORT` | No | `4300` | The port the demo listens on. |
-| `HOST` | No | `127.0.0.1` | The address it listens on. Keep it on loopback; see the note below. |
-| `DATA_FILE` | No | `api/data/state.json` | Where the demo keeps its state (payees, accounts, withdrawals). Delete it to start over. |
-
-> **Keep your key on the server.** It can send money from your balance. Store
-> it in a secret manager in your real systems, never in a mobile app, browser
-> code or a repository. If a key is exposed, **Rotate** it on the Developer
-> page: you get a new key and the old one keeps working for 24 hours while you
-> switch.
-
-> **This is a local demo, not a server to deploy.** The demo's own `/api`
-> routes have **no login**, so anyone who can reach them could send a payout
-> from your balance. That's why it listens on `127.0.0.1`, only answers
-> requests addressed to `localhost`, and refuses live keys. Your real backend
-> puts your own authentication in front of the same calls.
-
-## 4. Try the outcomes
-
-In the sandbox, the last digits of the account decide what happens to every
+When you add a recipient, pick the account that decides what happens to every
 payout sent to it:
 
-| CLABE | Result |
+| Account (CLABE) | What happens |
 |---|---|
-| `012180000000045669` | Completes normally. |
+| `012180000000070003` | Completes, then the **bank returns it** about 30 seconds later. |
 | `012180000000000002` | Stays `processing`, then completes at about 60 s. |
-| `012180000000070003` | Completes at about 10 s, then is **returned by the bank** at about 40 s. |
-| `012180000000030001` | Fails with `account_invalid`; the funds come back. |
+| `012180000000030001` | Fails with `account_invalid`; the money comes back. |
+| `012180000000045669` | Completes normally. |
 
-A payee can keep several accounts. **Remove** deletes that account on Avvio's
-side too.
+Start with `…0003`. A payment that is paid and then returned days later is
+the case your own ledger most needs to handle, and the demo shows it end to
+end.
 
-## 5. Receive webhooks (optional)
+The code behind the demo is this repo: **`api/`** is the backend (NestJS +
+TypeScript, the only code that holds the key or calls Avvio) and **`web/`** is
+the app (React + Vite). For the reasoning behind each step, read
+**[INTEGRATION_GUIDE.md](INTEGRATION_GUIDE.md)**.
 
-Webhooks tell your backend the moment a payout changes. The demo works without
-them, but your production backend should use them.
+## Build it into your own backend
 
-1. Expose the demo to the internet with a tunnel:
-   ```bash
-   npx -y cloudflared tunnel --url http://localhost:4300
-   ```
-   Copy the `https://….trycloudflare.com` URL it prints.
-2. In the dashboard (**Sandbox** → **Developer** → **Webhooks**), add an
-   endpoint: the tunnel URL plus `/webhooks/avvio`. Select the six payout
-   events: `payout.pending`, `payout.processing`, `payout.completed`,
-   `payout.failed`, `payout.canceled` and `payout.returned`.
-3. Copy the `whsec_…` secret (shown once) into `AVVIO_WEBHOOK_SECRET` and
-   restart with `npm start`.
-
-Only `/webhooks/avvio` answers through the tunnel. The app itself stays
-reachable from your machine only. A quick tunnel's URL changes each time you
-start it, so update the endpoint when it does.
-
-## 6. Build it into your own backend
-
-This is the part to copy. Your backend needs the same calls the demo makes,
+This is the part to copy. Your backend makes the same calls the demo makes,
 plus your own login and database. Every request carries your key in
-`x-api-key`:
+`x-api-key`, and the key never leaves your server:
 
 ```bash
 export AVVIO_BASE_URL=https://api.avvio.xyz/business/api/v1
-export AVVIO_API_KEY=avvio_test_…
+export AVVIO_API_KEY=avvio_test_…      # a sandbox key; see "Get a sandbox key" below
 export AVVIO_ORG_ID=…
 ```
 
-You can also use the official Node SDK, `npm install @avvio/payments`, which
-wraps these calls and verifies webhooks for you. Or use plain HTTP, as the demo
-does in `api/src/avvio/avvio.client.ts`.
+You can also use the Node SDK, `npm install @avvio/payments`, which wraps these
+calls and verifies webhooks for you, or plain HTTP as the demo does in
+`api/src/avvio/avvio.client.ts`.
 
-### Step 1: Show the right bank form
+### 1. Show the right bank form
 
 Each country needs different bank fields. Ask for them rather than hardcoding
 them:
@@ -213,9 +66,12 @@ curl -s "$AVVIO_BASE_URL/recipients/$AVVIO_ORG_ID/corridors?currency=MXN" \
 ```
 
 Render one input per field and send the values back keyed by each field's
-`id`. In the demo, see `CorridorService` and `web/src/screens/BankFormScreen.tsx`.
+`id`. In the demo: `CorridorService` and `web/src/screens/BankFormScreen.tsx`.
 
-### Step 2: Register the payee's bank account
+### 2. Register the recipient
+
+Each person you pay is one recipient, registered with their name and bank
+account:
 
 ```bash
 curl -s -X POST "$AVVIO_BASE_URL/recipients/$AVVIO_ORG_ID" \
@@ -224,31 +80,30 @@ curl -s -X POST "$AVVIO_BASE_URL/recipients/$AVVIO_ORG_ID" \
   -H "Idempotency-Key: $(uuidgen)" \
   -d '{
     "type": "individual",
-    "name": "Maria Lopez",
-    "email": "maria@example.com",
-    "externalId": "payee_123",
+    "name": "Rosa López",
+    "email": "rosa@example.com",
+    "externalId": "user_123-rosa-lopez",
     "method": {
       "kind": "fiat",
       "currency": "MXN",
-      "recipientDetails": { "clabeNumber": "012180000000045669" }
+      "recipientDetails": { "clabeNumber": "012180000000070003" }
     }
   }'
 ```
 
-- `externalId` is **your** ID for this payee. Sending it again returns the
-  same payee instead of creating a duplicate.
+- `externalId` is **your** ID for this person. Sending it again returns the
+  same recipient instead of creating a duplicate.
 - From the response, save **`id`** (the recipient) and
-  **`method.destinationAccountId`** (the account you pay). Save the last 4
-  digits for display too.
+  **`method.destinationAccountId`** (the account you pay), plus the last 4
+  digits for display.
 - **Don't store the full account number.** Avvio holds it; you only need the
   IDs.
-- To add another account for the same payee, `POST
+- Another account for the same person: `POST
   /recipients/{orgId}/{recipientId}/methods` with the same `method` object.
-  The new account's `method.destinationAccountId` is in the response.
 
-In the demo, see `AccountsService.add()`.
+In the demo: `AccountsService.add()`.
 
-### Step 3: Send the payout
+### 3. Send the payout
 
 ```bash
 curl -s -X POST "$AVVIO_BASE_URL/payments/organizations/$AVVIO_ORG_ID/payouts" \
@@ -256,31 +111,31 @@ curl -s -X POST "$AVVIO_BASE_URL/payments/organizations/$AVVIO_ORG_ID/payouts" \
   -H "content-type: application/json" \
   -H "Idempotency-Key: 6f1c2d3e-…" \
   -d '{
-    "amount": "25.00",
+    "amount": "75.00",
     "destinationAccountId": "<method.destinationAccountId from step 2>",
     "reference": "WD-000123"
   }'
 ```
 
-- `amount` is what you send, in USD, from your Avvio balance. The payee
+- `amount` is what you send, in USD, from your Avvio balance. The recipient
   receives it converted, less the fee.
 - `reference` is your own ID for this payout. Use it to find the payout later.
 - **Save the `Idempotency-Key` in your database before you send.** If the
   request times out, resend with the **same** key: it can never pay twice.
-- Optional: `expectDestination` is the amount you showed the payee. If the
-  rate has moved more than 2% since then, the payout is refused instead of
-  sending less.
+- Optional: `expectDestination` is the amount you showed the user. If the rate
+  has moved more than 2% since then, the payout is refused instead of sending
+  less.
 - Paying on behalf of your own customer (an employer, a merchant)? Add
-  `"endUser": { "id": "<your customer's id>" }`. It's never the payee.
-- `200` means it was sent. Save `payoutId`. `202` means it's waiting for
+  `"endUser": { "id": "<your customer's id>" }`. It's never the recipient.
+- `200` means it was sent: save `payoutId`. `202` means it's waiting for
   approval in your dashboard. A `4xx` means nothing was sent.
 
-In the demo, see `WithdrawalsService.create()`.
+In the demo: `WithdrawalsService.create()`.
 
-### Step 4: Handle an unknown outcome
+### 4. Handle an unknown outcome
 
 A timeout, a `5xx` or a `429` means the payout **may** exist. Never mark it
-failed. First look it up by your `reference`:
+failed. Look it up by your `reference` first:
 
 ```bash
 curl -s "$AVVIO_BASE_URL/payments/organizations/$AVVIO_ORG_ID/orders?reference=WD-000123" \
@@ -288,102 +143,155 @@ curl -s "$AVVIO_BASE_URL/payments/organizations/$AVVIO_ORG_ID/orders?reference=W
 ```
 
 If it's there, you're done. If not, resend with the same `Idempotency-Key`. In
-the demo, see `WithdrawalsService.resolve()`.
+the demo: `WithdrawalsService.resolve()`.
 
-### Step 5: Track it to the end
+### 5. Track it to the end
 
 A payout moves `pending → processing → completed`, or ends `failed` or
 `canceled`. **`completed` is not final:** a bank can return the payment days
 later, which arrives as `payout.returned` and gives you the money back.
 
-You have three ways to learn what happened. Use the first two:
-
 | How | Call | When |
 |---|---|---|
-| **Webhooks** | `POST` to your endpoint, signed | The moment anything changes. Verify the signature before trusting it. In the demo, see `WebhookVerifier`. |
-| **Events feed** | `GET /payments/organizations/{orgId}/events?since=<cursor>` | Every 30 s or so. Save `nextSince` and pass it next time. This is what your books should reconcile against. In the demo, see `ReconcileJob`. |
-| **Read one payout** | `GET /payments/organizations/{orgId}/orders/{payoutId}` | While a user is watching the screen. In the demo, see `FastPollJob`. |
+| **Webhooks** | `POST` to your endpoint, signed | The moment anything changes. Verify the signature before trusting it. In the demo: `WebhookVerifier`. |
+| **Events feed** | `GET /payments/organizations/{orgId}/events?since=<cursor>` | Every 30 s or so. Save `nextSince` and pass it next time. Reconcile your books against this. In the demo: `ReconcileJob`. |
+| **Read one payout** | `GET /payments/organizations/{orgId}/orders/{payoutId}` | While a user is watching the screen. In the demo: `FastPollJob`. |
 
-Note the pattern: you **send** to `/payouts` and **read** from `/orders`.
-
-Webhooks can arrive twice or out of order. Ignore an event ID you've already
-handled, and never let a status move backwards (a late `processing` must not
-undo `completed`). In the demo, see `withdrawal-status.ts`.
+Use the first two. Note the pattern: you **send** to `/payouts` and **read**
+from `/orders`. Webhooks can arrive twice or out of order: ignore an event ID
+you've already handled, and never let a status move backwards. In the demo:
+`withdrawal-status.ts`.
 
 ### What to store
 
 | Field | Why |
 |---|---|
-| Your payee ID, sent as `externalId` | Links your user to Avvio's recipient. |
+| Your ID for each recipient, sent as `externalId` | Links your user to Avvio's recipient. |
 | `recipientId` | To add or remove accounts later. |
 | `destinationAccountId` and `last4` per account | To pay the account and show it. **Not** the account number. |
-| Your `reference` and the `Idempotency-Key` per payout | To retry safely and to find the payout after a timeout. |
+| Your `reference` and the `Idempotency-Key` per payout | To retry safely and find the payout after a timeout. |
 | `payoutId` and the latest `status` | To show progress and reconcile. |
 | The events-feed cursor (`nextSince`) | To continue the feed where you left off. |
 
-## 7. Going live
+## Going live
 
 1. Complete business verification with Avvio.
 2. Create a **live** key (`avvio_live_…`) on the Developer page in your live
    org. The base URL and organization ID stay the same.
-3. Register a production webhook endpoint and store its new secret.
+3. Register a production webhook endpoint and store its secret.
 4. Fund your live balance using the deposit details in the dashboard.
 5. Send one small real payout end to end before you open it to users.
 
-Use your own backend for live. This demo refuses live keys on purpose.
+Keep your key on your server, in a secret manager: never in a mobile app,
+browser code or a repository. If one is exposed, **Rotate** it on the
+Developer page; the old key keeps working for 24 hours while you switch.
 
-## 8. Troubleshooting
+## Run it yourself
+
+Only needed if you want to run this code with your own sandbox key, change it,
+or step through it. Everything above works in the
+[live demo](https://payoutdemo.avvio.xyz).
+
+**Get a sandbox key.** Sign in at https://business.avvio.xyz, switch the org
+menu to **Sandbox**, open **Developer**, and create a key with **Transact**
+permission (shown once). The **Organization ID** is in the same page's header.
+
+**Run it** (Node 18 or newer):
+
+```bash
+git clone https://github.com/anzolabs/avvio-payout-demo.git
+cd avvio-payout-demo
+npm install
+cp .env.example .env      # set AVVIO_API_KEY and AVVIO_ORG_ID
+npm run build
+npm start                 # http://localhost:4300
+```
+
+On start, the backend checks your key and organization and adds test money if
+your sandbox balance is below $1,500. If something is wrong, the app says what
+to fix.
+
+<details>
+<summary><b>Every <code>.env</code> setting</b></summary>
+
+`.env` sits in the repo root and is git-ignored. Real environment variables
+override it. Put each comment on its own line: the loader does not strip
+trailing comments.
+
+| Variable | Required | Default | What it is |
+|---|---|---|---|
+| `AVVIO_API_KEY` | **Yes** | none | Your sandbox key, `avvio_test_…`. The demo refuses live keys. |
+| `AVVIO_ORG_ID` | **Yes** | none | Your organization ID from the Developer page. |
+| `AVVIO_BASE_URL` | No | `https://api.avvio.xyz/business/api/v1` | One URL for sandbox and live. |
+| `AVVIO_WEBHOOK_SECRET` | No | empty | Your webhook endpoint's `whsec_…` secret. Empty means polling and the events feed only. |
+| `DESTINATION_CURRENCY` | No | `MXN` | The currency recipients receive. |
+| `PORT` | No | `4300` | The port it listens on. |
+| `HOST` | No | `127.0.0.1` | Keep it on loopback: the demo's own routes have no login. |
+| `DATA_FILE` | No | `api/data/state.json` | Where it keeps its state. Delete it to start over. |
+
+</details>
+
+<details>
+<summary><b>Receive webhooks locally</b></summary>
+
+1. Expose the demo: `npx -y cloudflared tunnel --url http://localhost:4300`,
+   and copy the URL it prints.
+2. In the dashboard (**Sandbox** → **Developer** → **Webhooks**), add an
+   endpoint: that URL plus `/webhooks/avvio`, with the six `payout.*` events.
+3. Copy the `whsec_…` secret into `AVVIO_WEBHOOK_SECRET` and restart.
+
+Only `/webhooks/avvio` answers through the tunnel. A quick tunnel's URL changes
+each time you start it.
+
+</details>
+
+<details>
+<summary><b>Troubleshooting</b></summary>
 
 | You see | Cause and fix |
 |---|---|
-| `This demo refuses live keys` on start | You used an `avvio_live_` key. Use a sandbox key (`avvio_test_…`). |
-| `backend is not configured: set AVVIO_API_KEY and AVVIO_ORG_ID` | One of the two is missing from `.env`, or `.env` isn't in the repo root. Fix it and restart. |
-| `401` from Avvio | The key is wrong, revoked, or copied with a stray space. Create a new one on the Developer page. |
-| `403` from Avvio | The key doesn't have **Transact** permission, or the org ID belongs to a different organization. |
-| `cannot reach Avvio: …` at the top of the app | The message names the cause. It's usually the key or the org ID in `.env`; fix it and restart. |
-| Insufficient balance | You've spent the test money. Restart to top up again, or press **Fund sandbox $1,000** in the console. |
-| `This demo only serves /webhooks/* to other hosts` | Open the app at `http://localhost:4300`, not through the tunnel URL or your LAN IP. |
-| `503 webhook secret not configured` in the log | Webhooks are arriving but `AVVIO_WEBHOOK_SECRET` is empty. Add it and restart. |
-| Webhooks never arrive | The tunnel URL changed or stopped. Restart it and update the endpoint in the dashboard. The demo still catches up from the events feed. |
-| Port 4300 already in use | Set `PORT=4301` in `.env`. |
-| Old payees or payouts you don't want | Stop the demo, delete `api/data/state.json`, start again. |
+| `This demo refuses live keys` | Use a sandbox key (`avvio_test_…`). |
+| `backend is not configured` | `AVVIO_API_KEY` or `AVVIO_ORG_ID` is missing, or `.env` isn't in the repo root. |
+| `cannot reach Avvio: …` in the app | The message names the cause: usually the key (`401`), a missing Transact permission (`403`) or the org ID (`404`). |
+| Insufficient balance | Restart to top up, or use **Add $1,000 test money** in the console. |
+| `This demo only serves /webhooks/* to other hosts` | Open it at `http://localhost:4300`, not through the tunnel or your LAN IP. |
+| Webhooks never arrive | The tunnel URL changed. Update the endpoint; the events feed catches up meanwhile. |
+| Port 4300 in use | Set `PORT=4301` in `.env`. |
 
 When something looks wrong on Avvio's side, send your Avvio contact the
-`x-request-id` from the response. The console shows it for every call.
+`x-request-id` from the console.
 
-## 9. Tests, development and layout
+</details>
+
+<details>
+<summary><b>Tests, development and layout</b></summary>
 
 ```bash
-npm test          # webhook signatures, the status machine, the send path
+npm test          # webhook signatures, the status machine, the send path, visitor isolation
 npm run dev:api   # backend in watch mode
 npm run dev:web   # app on http://localhost:5173, proxied to the backend
 ```
 
-The tests use Node's built-in runner, with no extra dependencies.
-
-<details>
-<summary>Project layout</summary>
-
 ```
 api/src
-  main.ts          boot: raw body for webhooks, validation, localhost guard
-  config/          settings from .env and the environment
-  store/           state file and console log
-  avvio/           AvvioClient (the only code that calls Avvio), errors,
-                   WebhookVerifier, API types
-  payees/          payees and their bank accounts
+  avvio/           AvvioClient (the only code that calls Avvio), WebhookVerifier, types
+  payees/          people and their bank accounts (recipients)
   withdrawals/     status machine, sending, applying events
   webhooks/        POST /webhooks/avvio
   jobs/            FastPollJob, ReconcileJob
-  dashboard/       state, corridor, quote, log, balance, sandbox funding
-api/test           node:test suites
+  dashboard/       state, corridor, quote, balance, sandbox top-up
+  store/           state file and the console's call log
+  visitor.ts       public mode for the hosted demo
 web/src
-  screens/         Home, Accounts, BankForm, Confirm, Withdrawal, Activity
-  components/      Screen, StatusPill, Console
-  hooks/, api/     polling, backend log, typed client
+  screens/         Home, Recipients, BankForm, Amount, Confirm, Withdrawal, Activity
+  components/      Console (the call timeline), Screen, StatusPill
+hosting/cloudflare the hosted demo: Dockerfile, Worker, deploy notes
 ```
 
 </details>
+
+The hosted demo is this same code in public mode, on a Cloudflare Container;
+see [hosting/cloudflare](hosting/cloudflare/README.md).
 
 ## License
 
