@@ -97,6 +97,7 @@ export class WithdrawalsService {
       sourceCurrency: 'USD',
       destinationAccountId,
       last4: account.last4,
+      holder: account.holder ?? null,
       reference: `DEMO-${hex}`,
       idempotencyKey: randomUUID(),
       expectDestination,

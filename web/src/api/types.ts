@@ -56,6 +56,8 @@ export interface Account {
   destinationAccountId: string;
   last4: string | null;
   bank: string | null;
+  /** The name on the account: a family member. Null means the payee's own. */
+  holder: string | null;
   currency: string;
   registeredAt: string;
 }
@@ -76,6 +78,7 @@ export interface Withdrawal {
   payeeName: string;
   amount: string;
   last4: string | null;
+  holder?: string | null;
   reference: string;
   status: WithdrawalStatus;
   payoutId?: string;

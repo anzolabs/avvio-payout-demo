@@ -53,9 +53,9 @@ export function ConfirmScreen({ amount, account, payee, onSend, onBack }: Props)
     <Screen footer={footer}>
       <h2 className="title">Review</h2>
       <div className="receive">
-        <span className="eyebrow">{account.bank ?? 'The bank'} receives about</span>
+        <span className="eyebrow">{account.holder ?? payee.name} receives about</span>
         <div className="big num">{quote ? `${fmt(quote.destinationAmount.amount)} ${quote.destinationAmount.currency}` : '…'}</div>
-        <span className="muted">into {payee.name}'s account ····{account.last4}</span>
+        <span className="muted">into {account.bank ?? 'their bank'} ····{account.last4}</span>
       </div>
       <div className="card">
         <Row k="You send" v={money(amount)} />

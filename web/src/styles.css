@@ -6,7 +6,7 @@
   --line: rgba(18, 26, 2, .12); --tx-dim: rgba(18, 26, 2, .72); --tx-mute: rgba(18, 26, 2, .55);
   --ok: #3D5A0F; --ok-bg: #EAF3D6; --warn: #7A4E00; --warn-bg: #FBEFD5; --bad: #A12A1C; --bad-bg: #FBE7E3;
   /* the console: a dark section */
-  --c-bg: #0F1901; --c-row: #172403; --c-line: rgba(255, 255, 255, .10); --c-tx: #FAF9F6; --c-dim: rgba(250, 249, 246, .62);
+  --c-bg: #0A0A0A; --c-row: #161616; --c-line: rgba(255, 255, 255, .09); --c-tx: #F5F5F5; --c-dim: rgba(245, 245, 245, .58);
   --c-ok: #B9FA4B; --c-warn: #F5C451; --c-bad: #FF8A7A;
   --font: "Open Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
@@ -36,7 +36,7 @@ a { color: var(--ink); }
 .signed-in { display: flex; flex-direction: column; gap: 6px; min-width: 220px; }
 .signed-in select { min-height: 40px; padding: 0 12px; border-radius: 999px; border: 0; box-shadow: 0 0 0 1px var(--line) inset; background: var(--paper); font: 500 14px var(--font); color: var(--ink); }
 
-.stage { display: grid; grid-template-columns: minmax(360px, 400px) minmax(0, 1fr); gap: clamp(24px, 4vw, 48px); align-items: start; }
+.stage { display: grid; grid-template-columns: 448px minmax(0, 1fr); gap: clamp(24px, 4vw, 48px); align-items: start; }
 .col-app { position: sticky; top: 16px; display: flex; flex-direction: column; gap: 16px; align-items: center; }
 .half-label { display: flex; justify-content: space-between; align-items: baseline; width: 100%; margin-bottom: -4px; }
 
@@ -47,10 +47,29 @@ a { color: var(--ink); }
 .rail li.now { color: var(--ink); border-color: var(--ink); }
 
 /* ── the device ───────────────────────────────────────────────────────── */
-/* the partner's app: a plain panel in the brand's language (hairline, no chrome), the same height as the console */
-.device { width: 100%; height: min(798px, calc(100vh - 94px)); min-height: 600px; }
-.phone { height: 100%; border-radius: var(--r-lg); overflow: hidden; background: var(--paper); box-shadow: 0 0 0 1px var(--line); display: flex; flex-direction: column; }
-.app-top { display: flex; align-items: center; justify-content: space-between; padding: 18px 22px 12px; border-bottom: 1px solid var(--line); margin-bottom: 12px; }
+/* the partner's app on an iPhone 17 Pro, drawn at true size: a 402×874 pt screen inside a thin black
+   border and a Silver brushed-aluminium edge; Action button and volume left, side button and Camera Control right */
+.device { position: relative; flex: none; width: 432px; height: 904px; padding: 15px; border-radius: 76px;
+  background: #000;
+  box-shadow:
+    0 0 0 1px #1c1c1e,
+    0 0 0 3px #c9cbce, 0 0 0 4px #9fa2a6, 0 0 0 5.5px #e4e5e7, 0 0 0 6.5px #8e9195,
+    0 70px 110px -60px rgba(15, 25, 1, .55), 0 30px 60px -40px rgba(15, 25, 1, .35); }
+.device .btn-l, .device .btn-r { position: absolute; width: 5px; border-radius: 3px; background: linear-gradient(90deg, #8e9195, #d6d8db 45%, #a4a7ab); }
+.device .btn-l { left: -11px; border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.device .btn-r { right: -11px; border-top-left-radius: 0; border-bottom-left-radius: 0; }
+.device .action { top: 158px; height: 34px; }
+.device .vol-up { top: 222px; height: 62px; }
+.device .vol-down { top: 300px; height: 62px; }
+.device .side { top: 250px; height: 98px; }
+.device .camera { top: 520px; height: 62px; background: linear-gradient(90deg, #a4a7ab, #e1e2e4 55%, #8e9195); }
+.phone { position: relative; width: 402px; height: 874px; border-radius: 61px; overflow: hidden; background: #F2F2F7; display: flex; flex-direction: column; isolation: isolate; }
+.statusbar { position: relative; flex: none; height: 54px; display: flex; align-items: center; justify-content: space-between; padding: 8px 34px 0 50px; font: 600 17px -apple-system, "SF Pro Text", system-ui, sans-serif; color: #000; }
+.statusbar .island { position: absolute; left: 50%; top: 11px; transform: translateX(-50%); width: 126px; height: 37px; border-radius: 20px; background: #000; }
+.sb-icons { display: flex; align-items: center; gap: 6px; }
+.sb-icons svg { height: 12px; width: auto; fill: currentColor; }
+.home-bar { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); width: 140px; height: 5px; border-radius: 3px; background: #000; z-index: 3; }
+.app-top { display: flex; align-items: center; justify-content: space-between; padding: 8px 24px 6px; }
 .app-brand { font-weight: 800; font-size: 19px; letter-spacing: -.02em; }
 .app-brand span { color: var(--accent-text); }
 .avatar { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: var(--bone); font: 700 12px var(--font); }
@@ -59,10 +78,10 @@ a { color: var(--ink); }
 @keyframes push { from { opacity: 0; transform: translateX(12px); } }
 .body { flex: 1; padding: 6px 22px 22px; }
 .footer { position: sticky; bottom: 0; margin-top: auto; padding: 12px 22px 14px; background: var(--paper); box-shadow: 0 -12px 12px -4px var(--paper); }
-.tabs { display: flex; padding: 8px 22px 10px; gap: 8px; border-top: 1px solid var(--line); }
+.tabs { display: flex; padding: 8px 22px 6px; gap: 8px; border-top: 1px solid var(--line); }
 .tabs button { flex: 1; min-height: 38px; border: 0; border-radius: 999px; background: transparent; color: var(--tx-mute); font-weight: 700; font-size: 13px; cursor: pointer; }
 .tabs button.active { background: var(--bone); color: var(--ink); }
-.powered { text-align: center; font: 500 10px var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--tx-mute); padding-bottom: 12px; }
+.powered { text-align: center; font: 500 10px var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--tx-mute); padding-bottom: 6px; }
 
 /* ── inside the app ───────────────────────────────────────────────────── */
 h2.title { margin: 8px 0 14px; font-weight: 500; font-size: 24px; line-height: 1.1; letter-spacing: -.02em; }
@@ -79,7 +98,7 @@ h2.title { margin: 8px 0 14px; font-weight: 500; font-size: 24px; line-height: 1
 .balance .eyebrow { color: rgba(250, 249, 246, .6); }
 .balance .amount { font-weight: 800; font-size: 40px; letter-spacing: -.03em; line-height: 1.1; margin: 6px 0 4px; }
 .balance .sub { font-size: 13px; color: rgba(250, 249, 246, .72); }
-.chips { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 10px 0 12px; }
+.chips { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 8px; margin: 14px 0 12px; }
 .chips button { min-height: 46px; border: 0; border-radius: var(--r-sm); background: var(--cream); box-shadow: 0 0 0 1px var(--line) inset; font-weight: 700; cursor: pointer; transition: box-shadow .15s var(--ease); }
 .chips button.on { box-shadow: 0 0 0 2px var(--ink) inset; }
 .preview { display: flex; justify-content: space-between; align-items: baseline; padding: 14px 16px; border-radius: var(--r-sm); background: var(--bone); margin-top: 6px; }
@@ -102,7 +121,24 @@ h2.title { margin: 8px 0 14px; font-weight: 500; font-size: 24px; line-height: 1
 
 .account { display: flex; align-items: center; gap: 12px; width: 100%; padding: 14px 16px; margin-bottom: 8px; border: 0; border-radius: var(--r-md); background: var(--cream); box-shadow: 0 0 0 1px var(--line) inset; text-align: left; cursor: pointer; }
 .account.on { box-shadow: 0 0 0 2px var(--ink) inset; }
-.account .logo { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; background: var(--bone); font: 800 12px var(--font); }
+/* the remittance app */
+.hello { margin: 2px 0 14px; font-weight: 500; font-size: 26px; letter-spacing: -.02em; }
+.section-head { margin: 22px 0 10px; }
+.people { display: flex; gap: 14px; overflow-x: auto; padding-bottom: 4px; }
+.person { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 56px; border: 0; background: none; font-size: 12px; font-weight: 700; cursor: pointer; }
+.face { flex: none; width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; background: var(--bone); font: 800 15px var(--font); color: var(--ink); }
+.face.add { background: transparent; border: 1.5px dashed rgba(18, 26, 2, .3); font-weight: 500; font-size: 22px; }
+.face.sm { width: 40px; height: 40px; font-size: 13px; }
+.account .face { width: 42px; height: 42px; font-size: 13px; }
+.fx { padding: 16px 18px; border-radius: var(--r-md); background: var(--cream); box-shadow: 0 0 0 1px var(--line) inset; }
+.fx-row { display: block; }
+.fx-amount { display: flex; align-items: baseline; gap: 6px; margin-top: 2px; }
+.fx-amount input, .fx-amount .out, .fx-amount .cur { font: 800 34px/1.2 var(--font); letter-spacing: -.03em; color: var(--ink); }
+.fx-amount input { flex: 1; min-width: 0; padding: 0; border: 0; background: none; }
+.fx-amount input:focus { outline: none; }
+.fx-amount .out { flex: 1; }
+.fx-amount .code { font: 700 13px var(--mono); color: var(--tx-dim); }
+.fx-mid { display: flex; justify-content: space-between; margin: 12px 0; padding: 10px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); font-size: 12px; color: var(--tx-dim); }
 .account .who { flex: 1; min-width: 0; }
 .account .who strong { display: block; font-size: 14px; }
 .link { border: 0; background: none; color: var(--tx-dim); font-size: 12px; font-weight: 700; cursor: pointer; padding: 4px; text-decoration: underline; }
@@ -153,7 +189,7 @@ h2.title { margin: 8px 0 14px; font-weight: 500; font-size: 24px; line-height: 1
 .empty { text-align: center; padding: 40px 12px; }
 
 /* ── the console ──────────────────────────────────────────────────────── */
-.console { min-width: 0; border-radius: var(--r-lg); background: var(--c-bg); color: var(--c-tx); display: flex; flex-direction: column; height: min(860px, calc(100vh - 32px)); min-height: 640px; position: sticky; top: 16px; overflow: hidden; }
+.console { min-width: 0; border-radius: var(--r-lg); background: var(--c-bg); color: var(--c-tx); display: flex; flex-direction: column; height: 958px; position: sticky; top: 16px; overflow: hidden; }
 .console-head { padding: 22px 24px 16px; border-bottom: 1px solid var(--c-line); }
 .console-head .eyebrow { color: var(--c-dim); }
 .console-head h3 { margin: 8px 0 12px; font-weight: 500; font-size: 22px; letter-spacing: -.02em; }
@@ -202,8 +238,10 @@ h2.title { margin: 8px 0 14px; font-weight: 500; font-size: 24px; line-height: 1
   .switcher button.on { background: var(--paper); box-shadow: 0 0 0 1px var(--line); }
   .stage[data-show="app"] .console, .stage[data-show="api"] .col-app { display: none; }
   .col-app { position: static; }
-  .device { height: auto; }
-  .phone { min-height: 640px; }
+  .device { width: 100%; height: auto; padding: 0; border-radius: var(--r-lg); background: none; box-shadow: 0 0 0 1px var(--line); }
+  .device .btn-l, .device .btn-r { display: none; }
+  .phone { width: 100%; height: auto; min-height: 700px; border-radius: var(--r-lg); }
+  .statusbar, .home-bar { display: none; }
   .console { position: static; height: 78vh; min-height: 520px; }
   .entry > button { grid-template-columns: 50px minmax(0, 1fr) auto; }
   .entry .verb { grid-column: 2; grid-row: 1; }
@@ -211,3 +249,53 @@ h2.title { margin: 8px 0 14px; font-weight: 500; font-size: 24px; line-height: 1
   .entry .caption { margin-left: 12px; }
   .topbar nav .btn.ghost { display: none; }
 }
+
+/* ── inside the iPhone: native iOS, not the web brand ─────────────────── */
+.phone { --ios: -apple-system, "SF Pro Text", "SF Pro Display", system-ui, sans-serif; --ios-bg: #F2F2F7; --ios-card: #FFFFFF; --ios-sep: rgba(60, 60, 67, .18); --ios-2: rgba(60, 60, 67, .6); --ios-tint: #121A02; font-family: var(--ios); color: #000; }
+.phone .eyebrow { font: 400 13px var(--ios); letter-spacing: -.01em; text-transform: none; color: var(--ios-2); }
+.phone .app-top { padding: 4px 20px 0; }
+.phone .app-brand { font: 700 17px var(--ios); letter-spacing: -.02em; }
+.phone .avatar { width: 34px; height: 34px; background: #E5E5EA; font: 600 13px var(--ios); }
+.phone .body { padding: 4px 16px 20px; }
+.phone .hello, .phone h2.title { margin: 6px 4px 14px; font: 700 34px/1.12 var(--ios); letter-spacing: -.03em; }
+.phone .muted { color: var(--ios-2); font-size: 15px; }
+.phone .balance { border-radius: 22px; }
+.phone .balance .eyebrow { color: rgba(250, 249, 246, .65); }
+.phone .balance .amount { font: 700 44px var(--ios); letter-spacing: -.04em; }
+.phone .balance .sub { font-size: 15px; }
+.phone .section-head { margin: 26px 4px 8px; }
+.phone .section-head .eyebrow { text-transform: uppercase; font-size: 13px; }
+.phone .face { background: #E5E5EA; font: 600 17px var(--ios); }
+.phone .person { font: 500 13px var(--ios); }
+.phone .cta { min-height: 50px; border-radius: 14px; background: var(--ios-tint); font: 600 17px var(--ios); letter-spacing: -.01em; text-transform: none; }
+.phone .cta.secondary { background: var(--ios-card); color: var(--ios-tint); box-shadow: none; }
+.phone .back { font: 400 17px var(--ios); color: var(--ios-tint); }
+.phone .footer { background: var(--ios-bg); box-shadow: 0 -12px 12px -4px var(--ios-bg); padding: 10px 16px 12px; }
+.phone .card, .phone .fx, .phone .account, .phone .receive { background: var(--ios-card); box-shadow: none; border-radius: 16px; }
+.phone .chips button { background: var(--ios-card); box-shadow: none; border-radius: 12px; font: 600 17px var(--ios); }
+.phone .chips button.on { background: var(--ios-tint); color: #fff; box-shadow: none; }
+.phone .field input, .phone .field select { background: var(--ios-card); box-shadow: none; border-radius: 12px; font: 400 17px var(--ios); min-height: 50px; }
+.phone .field input:focus { box-shadow: 0 0 0 2px var(--ios-tint) inset; }
+.phone .field label.eyebrow { margin: 0 4px 6px; text-transform: uppercase; font-size: 13px; }
+.phone .fx-amount input, .phone .fx-amount .out, .phone .fx-amount .cur { font: 700 36px var(--ios); letter-spacing: -.03em; }
+.phone .fx-amount .code { font: 600 15px var(--ios); color: var(--ios-2); }
+.phone .fx-mid { font-size: 13px; border-color: var(--ios-sep); }
+.phone .receive .big, .phone .done-hero .big { font: 700 36px var(--ios); letter-spacing: -.03em; }
+.phone .summary { border-color: var(--ios-sep); font-size: 17px; }
+.phone .activity { background: var(--ios-card); border-top: 0; border-radius: 0; padding: 12px 14px; }
+.phone .activity:first-of-type { border-top-left-radius: 14px; border-top-right-radius: 14px; }
+.phone .activity:last-of-type { border-bottom-left-radius: 14px; border-bottom-right-radius: 14px; }
+.phone .activity + .activity { box-shadow: 0 -1px 0 var(--ios-sep); }
+.phone .pill { font: 600 12px var(--ios); }
+.phone .note { background: var(--ios-card); font-size: 15px; border-radius: 14px; }
+.phone .note.error { background: #FDECEA; }
+.phone .steps strong { font: 600 17px var(--ios); }
+.phone .tray { border-color: rgba(60, 60, 67, .3); background: transparent; }
+.phone .tray .eyebrow { text-transform: uppercase; font-size: 12px; }
+.phone .tray button { font: 400 15px var(--ios); }
+.phone .link { font: 400 15px var(--ios); color: var(--ios-tint); text-decoration: none; }
+/* the iOS tab bar: icons over labels, translucent, above the home indicator */
+.phone .tabs { gap: 0; padding: 7px 24px 30px; background: rgba(249, 249, 249, .94); border-top: .5px solid rgba(0, 0, 0, .2); backdrop-filter: blur(20px); }
+.phone .tabs button { display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 0; padding: 0; border-radius: 0; background: none; font: 500 10px var(--ios); color: #999; }
+.phone .tabs button.active { background: none; color: var(--ios-tint); }
+.phone .tabs svg { width: 26px; height: 26px; fill: currentColor; }

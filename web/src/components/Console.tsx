@@ -180,7 +180,7 @@ export function Console({ server }: { server: ServerState }) {
         <button onClick={clear} title="Clears this view only">Clear</button>
       </div>
       <div className="feed" ref={feed}>
-        {entries.length === 0 && <div className="empty-feed">Tap <b>Withdraw</b> in the app. Each call your backend makes to Avvio appears here, with its request and response.</div>}
+        {entries.length === 0 && <div className="empty-feed">Tap <b>Send money</b> in the app. Each call your backend makes to Avvio appears here, with its request and response.</div>}
         {entries.map((e) => (
           <Row key={e.key} e={e} base={server.baseUrl} org={server.orgId} open={open === e.key} fresh={fresh.has(e.key)} onToggle={() => setOpen(open === e.key ? null : e.key)} />
         ))}

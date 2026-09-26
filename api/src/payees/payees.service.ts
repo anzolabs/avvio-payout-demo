@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { visitorOfId } from '../visitor';
 
-/** Someone the business pays: a contractor, a seller, a worker. */
+/** A worker on the platform, sending part of their earned wages to people they choose. */
 export interface Payee {
   id: string;
   name: string;
@@ -18,9 +18,9 @@ export interface Payee {
 @Injectable()
 export class PayeesService {
   private readonly payees: Payee[] = [
-    { id: 'payee_4471', name: 'Ana Lopez', email: 'ana.lopez@example.com', available: '312.50', note: 'Earned this week · pays out any time' },
-    { id: 'payee_4472', name: 'Luis Ortega', email: 'luis.ortega@example.com', available: '188.00', note: 'Invoice #1042 approved' },
-    { id: 'payee_4473', name: 'Maria Chen', email: 'maria.chen@example.com', available: '540.25', note: 'Marketplace sales, settled' },
+    { id: 'payee_4471', name: 'Ana Lopez', email: 'ana.lopez@example.com', available: '312.50', note: 'Earned wages · 4 shifts this week' },
+    { id: 'payee_4472', name: 'Luis Ortega', email: 'luis.ortega@example.com', available: '188.00', note: 'Earned wages · 2 shifts this week' },
+    { id: 'payee_4473', name: 'Maria Chen', email: 'maria.chen@example.com', available: '540.25', note: 'Earned wages · 6 shifts this week' },
   ];
 
   /** A visitor to the hosted demo gets their own copy of each payee. */

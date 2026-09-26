@@ -57,6 +57,8 @@ export function BankFormScreen({ payeeId, payee, onSaved, onBack }: Props) {
   // timeout is the same request, registered once; different details are a
   // different request. The salt keeps the id from revealing the account.
   const [salt] = useState(() => crypto.randomUUID());
+  // Pre-filled so the first run is taps, not typing; any name works.
+  const [holder, setHolder] = useState('Rosa López');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -79,13 +81,14 @@ export function BankFormScreen({ payeeId, payee, onSaved, onBack }: Props) {
       if (err) errs[f.id] = err;
       if (value) details[f.id] = value;
     }
+    if (!/^\p{L}[\p{L} .'-]{1,59}$/u.test(holder.trim())) errs.holder = 'Enter their full name';
     setFieldErrors(errs);
     if (Object.keys(errs).length) return;
 
     setBusy(true);
     setError('');
     try {
-      const res = await api.addAccount(payeeId, details, await requestIdFor(salt, details));
+      const res = await api.addAccount(payeeId, details, await requestIdFor(salt, { ...details, holder: holder.trim() }), holder.trim());
       onSaved(res.account);
     } catch (e) {
       // The server names the field in errors[]; show it under the field when we can.
@@ -113,8 +116,13 @@ export function BankFormScreen({ payeeId, payee, onSaved, onBack }: Props) {
   return (
     <Screen footer={footer}>
       <form id="bank" onSubmit={submit}>
-        <h2 className="title">Where should it go?</h2>
-        <p className="muted">A {corridor.currency} bank account for {payee.name}. Saved for next time.</p>
+        <h2 className="title">Add someone new</h2>
+        <p className="muted">Their bank account in Mexico. Saved for {payee.name.split(' ')[0]}'s next transfer.</p>
+        <div className="field">
+          <label htmlFor="holder" className="eyebrow">Their full name</label>
+          <input id="holder" autoComplete="off" value={holder} onChange={(e) => setHolder(e.target.value)} />
+          {fieldErrors.holder && <p className="field-err">{fieldErrors.holder}</p>}
+        </div>
         {corridor.fields.map((f) => (
           <div className="field" key={f.id}>
             <label htmlFor={f.id} className="eyebrow">{f.title || f.id}</label>

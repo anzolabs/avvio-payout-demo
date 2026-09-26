@@ -1,57 +1,58 @@
 import { useEffect, useState } from 'react';
-import { api, money } from '../api/client';
-import { Payee, Quote, ServerState } from '../api/types';
+import { api, firstName, initials, money } from '../api/client';
+import { Account, Payee, ServerState, Withdrawal } from '../api/types';
 import { Screen } from '../components/Screen';
-
-const AMOUNTS = ['50.00', '75.00', '100.00'];
+import { StatusPill } from '../components/StatusPill';
 
 interface Props {
   payee: Payee;
   server: ServerState;
-  initialAmount: string;
-  onWithdraw: (amount: string) => void;
+  accounts: Account[];
+  onSend: () => void;
+  onPick: (account: Account) => void;
+  onNew: () => void;
+  onOpen: (w: Withdrawal) => void;
 }
 
-/** Home: what the payee can withdraw, how much they want, and what the bank will receive. */
-export function HomeScreen({ payee, server, initialAmount, onWithdraw }: Props) {
-  const [amount, setAmount] = useState(initialAmount);
-  const [custom, setCustom] = useState('');
-  const [quote, setQuote] = useState<Quote | null>(null);
-
-  const value = custom || amount;
-  const valid = /^\d{1,6}(\.\d{1,2})?$/.test(value) && Number(value) > 0 && Number(value) <= Number(payee.left);
-
-  // An indicative price as they choose, debounced: GET /rates on the backend.
+/** Home: earned wages to send, the people you send to, and what went out lately. */
+export function HomeScreen({ payee, server, accounts, onSend, onPick, onNew, onOpen }: Props) {
+  const [recent, setRecent] = useState<Withdrawal[]>([]);
   useEffect(() => {
-    if (!valid || !server.configured) { setQuote(null); return undefined; }
-    let live = true;
-    const t = setTimeout(() => { api.quote(Number(value).toFixed(2)).then((q) => live && setQuote(q)).catch(() => live && setQuote(null)); }, 350);
-    return () => { live = false; clearTimeout(t); };
-  }, [value, valid, server.configured]);
+    api.withdrawals().then((l) => setRecent(l.filter((w) => w.payeeId === payee.id).slice(0, 3))).catch(() => undefined);
+  }, [payee.id]);
 
   return (
-    <Screen footer={<button className="cta" disabled={!valid} onClick={() => onWithdraw(Number(value).toFixed(2))}>Withdraw {valid ? money(value) : ''}</button>}>
+    <Screen footer={<button className="cta" onClick={onSend}>Send money</button>}>
+      <p className="hello">Hi {firstName(payee.name)}</p>
       <div className="balance">
-        <div className="eyebrow">Available to withdraw</div>
+        <div className="eyebrow">Earned wages available</div>
         <div className="amount num">{money(payee.left)}</div>
         <div className="sub">{payee.note}</div>
       </div>
-      <span className="eyebrow">How much</span>
-      <div className="chips">
-        {AMOUNTS.map((a) => (
-          <button key={a} className={!custom && a === amount ? 'on' : ''} onClick={() => { setAmount(a); setCustom(''); }}>{money(a)}</button>
+
+      <div className="section-head"><span className="eyebrow">Send to</span></div>
+      <div className="people">
+        {accounts.map((a) => (
+          <button key={a.id} className="person" onClick={() => onPick(a)}>
+            <span className="face">{initials(a.holder ?? payee.name)}</span>
+            <span>{firstName(a.holder ?? 'Me')}</span>
+          </button>
         ))}
+        <button className="person" onClick={onNew}>
+          <span className="face add">+</span>
+          <span>New</span>
+        </button>
       </div>
-      <div className="field">
-        <input id="custom" aria-label="Another amount in USD" inputMode="decimal" placeholder="Another amount, USD" value={custom} onChange={(e) => setCustom(e.target.value.trim())} />
-        {custom && !valid && <p className="field-err">Enter an amount up to {money(payee.left)}</p>}
-      </div>
-      {quote && (
-        <div className="preview">
-          <span className="muted">The bank receives about</span>
-          <strong className="num">{Number(quote.destinationAmount.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {quote.destinationAmount.currency}</strong>
-        </div>
-      )}
+
+      <div className="section-head"><span className="eyebrow">Recent</span></div>
+      {recent.length === 0 && <p className="muted">Nothing sent yet.</p>}
+      {recent.map((w) => (
+        <button className="activity" key={w.id} onClick={() => onOpen(w)}>
+          <span className="face sm">{initials(w.holder ?? payee.name)}</span>
+          <span className="who"><strong>{w.holder ?? 'My account'}</strong><br /><span className="muted num">{money(w.amount)}</span></span>
+          <StatusPill status={w.status} />
+        </button>
+      ))}
       {(!server.configured || server.bootError) && <div className="note error">{server.bootError ?? 'Backend is not configured.'}</div>}
     </Screen>
   );

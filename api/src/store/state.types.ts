@@ -5,6 +5,10 @@ export interface Account {
   last4: string | null;
   /** From the CLABE's first three digits, for display. */
   bank?: string | null;
+  /** Who the account belongs to: a family member, say. Absent means the payee's own account. */
+  holder?: string | null;
+  /** Our id for that person at Avvio (their beneficiary's externalId). Absent means the payee's own. */
+  recipientKey?: string;
   currency: string;
   registeredAt: string;
 }
@@ -41,6 +45,8 @@ export interface Withdrawal {
   sourceCurrency: 'USD';
   destinationAccountId: string;
   last4: string | null;
+  /** The name on the receiving account. */
+  holder?: string | null;
   reference: string;
   /** Persisted before the send; never leaves the backend. */
   idempotencyKey: string;

@@ -39,10 +39,10 @@ const Back = () => <svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5M4 9h10a6 6 0 
 
 function Hero({ wd }: { wd: Withdrawal }) {
   const dest = wd.destinationAmount ? `${Number(wd.destinationAmount).toLocaleString(undefined, { minimumFractionDigits: 2 })} ${wd.destinationCurrency}` : money(wd.amount);
-  if (wd.status === 'completed') return <div className="done-hero"><div className="seal"><Check /></div><div className="big num">{dest}</div><span className="muted">paid into ····{wd.last4}</span></div>;
+  if (wd.status === 'completed') return <div className="done-hero"><div className="seal"><Check /></div><div className="big num">{dest}</div><span className="muted">paid to {wd.holder ?? 'your account'} ····{wd.last4}</span></div>;
   if (wd.status === 'returned') return <div className="done-hero"><div className="seal warn"><Back /></div><div className="big num">{money(wd.amount)}</div><span className="muted">is back in your balance. The bank returned it.</span></div>;
   if (wd.status === 'failed' || wd.status === 'error' || wd.status === 'canceled') return <div className="done-hero"><div className="seal bad"><Cross /></div><div className="big num">{money(wd.amount)}</div><span className="muted">{wd.status === 'failed' ? `did not go through: ${reason(wd.failureCode)}.` : 'was not sent.'}</span></div>;
-  return <div className="done-hero"><span className="eyebrow">Sending</span><div className="big num">{money(wd.amount)}</div><span className="muted">to ····{wd.last4}</span></div>;
+  return <div className="done-hero"><span className="eyebrow">Sending</span><div className="big num">{money(wd.amount)}</div><span className="muted">to {wd.holder ?? 'your account'} ····{wd.last4}</span></div>;
 }
 
 function Detail({ wd }: { wd: Withdrawal }) {

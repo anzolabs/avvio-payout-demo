@@ -32,3 +32,10 @@ test('the console never shows a full account number', async () => {
     amount: '25.00',
   });
 });
+
+test('a family recipient gets a stable id of their own, still attributed to the visitor', async () => {
+  const { slug } = await import('../src/payees/accounts.service');
+  assert.equal(slug('Rosa López'), 'rosa-lopez');
+  assert.equal(slug("  D'Angelo  Pérez-Soto "), 'd-angelo-perez-soto');
+  assert.equal(visitorOfId(`payee_4471-v0123456789-${slug('Rosa López')}`), 'v0123456789');
+});
