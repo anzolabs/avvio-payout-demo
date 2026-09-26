@@ -4,6 +4,9 @@ A complete, runnable example of paying people through the
 [Avvio Payouts API](https://docs.avvio.xyz). Clone it, add a sandbox key, and
 send your first payout in about five minutes.
 
+**Try it live, no setup: https://payoutdemo.avvio.xyz**. It's the same app
+running on the Avvio sandbox, with test money and test accounts only.
+
 ## Overview
 
 This repo is what **you** build on your side of an Avvio integration: a
