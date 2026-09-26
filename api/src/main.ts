@@ -5,6 +5,7 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import type { NextFunction, Request, Response } from 'express';
 import { AppModule } from './app.module';
 import { APP_CONFIG, AppConfig } from './config/app.config';
+import { assignVisitor, limitWrites } from './visitor';
 
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
 const FORWARDING_HEADERS = ['x-forwarded-for', 'x-forwarded-host', 'forwarded', 'cf-connecting-ip', 'x-real-ip'];
@@ -45,10 +46,13 @@ async function bootstrap(): Promise<void> {
   // rawBody: webhook signatures are verified over the exact bytes received.
   // bodyParser off, then JSON only: no urlencoded form posts.
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true, bodyParser: false });
-  app.use(localOnlyExceptWebhooks, jsonOnly);
+  const config = app.get<AppConfig>(APP_CONFIG);
+  // Hosted: served to anyone through a proxy, so the localhost guard gives way
+  // to a visitor cookie and a write limit. Local: this machine only.
+  if (config.publicDemo) app.use(assignVisitor, limitWrites, jsonOnly);
+  else app.use(localOnlyExceptWebhooks, jsonOnly);
   app.useBodyParser('json', { limit: '100kb' });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
-  const config = app.get<AppConfig>(APP_CONFIG);
   await app.listen(config.port, config.host);
   new Logger('demo').log(`Avvio payouts demo: http://localhost:${config.port}  (webhook receiver at POST /webhooks/avvio)`);
 }

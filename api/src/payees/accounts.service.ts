@@ -1,4 +1,5 @@
 import { BadRequestException, HttpException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { TEST_CLABES } from '../visitor';
 import { AvvioClient } from '../avvio/avvio.client';
 import { AvvioError, isUnknownOutcome } from '../avvio/avvio.error';
 import { Beneficiary, PaymentMethod, PaymentMethodInput } from '../avvio/avvio.types';
@@ -62,6 +63,10 @@ export class AccountsService {
       this.repo.save();
     }
     const before = new Set(pending[requestId]);
+    // The hosted demo is public: only the sandbox's test accounts, never real bank details.
+    if (this.config.publicDemo && !Object.values(details).some((v) => TEST_CLABES.includes(v.replace(/\D/g, '')))) {
+      throw new BadRequestException(`This public demo only accepts the sandbox test accounts: ${TEST_CLABES.join(', ')}`);
+    }
     const method: PaymentMethodInput = { kind: 'fiat', currency: this.config.currency, recipientDetails: details };
     // The app's id for this submission: a resubmit of the same form after a
     // timeout reuses it, so the account is registered once.

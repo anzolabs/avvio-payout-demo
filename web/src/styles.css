@@ -89,3 +89,5 @@ body { margin: 0; font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-ser
 .console pre .src.webhook { color: var(--green); }
 .console pre .src.feed { color: var(--amber); }
 .console pre .src.poll { color: var(--ink-2); }
+.chip { display: block; width: 100%; text-align: left; margin-top: 6px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: transparent; font: inherit; font-size: 13px; cursor: pointer; }
+.chip .muted { margin-left: 6px; }

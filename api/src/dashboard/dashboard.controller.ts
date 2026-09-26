@@ -1,4 +1,6 @@
-import { BadRequestException, Controller, Get, HttpException, Inject, Post, Query } from '@nestjs/common';
+import { BadRequestException, Controller, ForbiddenException, Get, HttpException, Inject, Post, Query, Req } from '@nestjs/common';
+import type { Request } from 'express';
+import { visitorOf } from '../visitor';
 import { randomUUID } from 'node:crypto';
 import { AvvioClient } from '../avvio/avvio.client';
 import { AvvioError } from '../avvio/avvio.error';
@@ -23,9 +25,10 @@ export class DashboardController {
   ) {}
 
   @Get('state')
-  state() {
+  state(@Req() req: Request) {
     const p = this.policy.policy;
     return {
+      publicDemo: this.config.publicDemo,
       configured: this.config.avvio.configured,
       mode: this.config.avvio.mode,
       orgId: this.config.avvio.org,
@@ -41,7 +44,7 @@ export class DashboardController {
       bootError: this.policy.bootError,
       // `left` is what the backend will actually allow: available minus what
       // is already on its way or paid. The app shows and validates against it.
-      payees: this.payees.all().map((p) => ({ ...p, left: (this.withdrawals.leftCents(p.id, p.available) / 100).toFixed(2) })),
+      payees: this.payees.all(visitorOf(req)).map((p) => ({ ...p, left: (this.withdrawals.leftCents(p.id, p.available) / 100).toFixed(2) })),
     };
   }
 
@@ -59,8 +62,8 @@ export class DashboardController {
   }
 
   @Get('log')
-  logSince(@Query('after') after?: string) {
-    return this.log.since(after ?? '');
+  logSince(@Req() req: Request, @Query('after') after?: string) {
+    return this.log.since(after ?? '', visitorOf(req));
   }
 
   @Get('balance')
@@ -71,6 +74,7 @@ export class DashboardController {
   @Post('sandbox/fund')
   fund() {
     if (this.config.avvio.mode === 'live') throw new BadRequestException('sandbox only');
+    if (this.config.publicDemo) throw new ForbiddenException('the hosted demo tops itself up');
     return this.passthrough(async () => {
       const r = await this.avvio.fundSandbox('1000.00', randomUUID());
       this.log.log('api', `POST /sandbox/fund → balance ${r.body.balance}`);

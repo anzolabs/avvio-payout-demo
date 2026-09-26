@@ -1,0 +1,6 @@
+{
+  "name": "avvio-payout-demo-hosting",
+  "private": true,
+  "dependencies": { "@cloudflare/containers": "^0.2.0" },
+  "devDependencies": { "wrangler": "^4" }
+}

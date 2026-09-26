@@ -1,4 +1,5 @@
 import { Inject, Injectable, OnApplicationBootstrap } from '@nestjs/common';
+import { Interval } from '@nestjs/schedule';
 import { randomUUID } from 'node:crypto';
 import { AvvioClient } from '../avvio/avvio.client';
 import { AvvioError } from '../avvio/avvio.error';
@@ -44,6 +45,12 @@ export class PolicyService implements OnApplicationBootstrap {
    * fresh clone works without pressing anything. Funding is idempotent per
    * key; a new key per boot is fine because it only runs when the balance is low.
    */
+  /** Hosted demo: every visitor spends the same test balance, so keep it topped up. */
+  @Interval(60_000)
+  async keepFunded(): Promise<void> {
+    if (this.config.publicDemo && this.policy?.mode === 'test') await this.topUp();
+  }
+
   private async topUp(): Promise<void> {
     try {
       const balance = Number((await this.avvio.balance()).body.amount);

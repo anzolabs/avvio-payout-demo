@@ -11,6 +11,8 @@ export interface Payee {
 }
 
 export interface ServerState {
+  /** The hosted demo: shared sandbox, test accounts only, tops itself up. */
+  publicDemo?: boolean;
   configured: boolean;
   mode: 'test' | 'live' | null;
   orgId: string;
