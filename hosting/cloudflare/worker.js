@@ -15,9 +15,17 @@ export class PayoutDemo extends Container {
 }
 
 export default {
-  fetch(request, env) {
-    // One container per deploy: a running container keeps its image, so a new
-    // deploy gets a fresh one and the previous one sleeps on its own.
-    return getContainer(env.PAYOUT_DEMO, `shared-${env.DEPLOY_ID ?? 'local'}`).fetch(request);
+  async fetch(request, env) {
+    const demo = getContainer(env.PAYOUT_DEMO, 'shared');
+    // The deploy job calls this once the new image has rolled out: a running
+    // container keeps the image it started with, so it is stopped and the next
+    // request starts one on the new image. The token is minted per deploy.
+    if (new URL(request.url).pathname === '/__deploy/restart') {
+      const ok = request.method === 'POST' && env.RESTART_TOKEN && request.headers.get('authorization') === `Bearer ${env.RESTART_TOKEN}`;
+      if (!ok) return new Response('Not found', { status: 404 });
+      await demo.destroy();
+      return new Response('restarted');
+    }
+    return demo.fetch(request);
   },
 };
