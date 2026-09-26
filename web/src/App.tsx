@@ -31,6 +31,14 @@ export default function App() {
   const [amount, setAmount] = useState('75.00');
   const [current, setCurrent] = useState<Withdrawal | null>(null);
   const [show, setShow] = useState<'app' | 'api'>('app');
+  // The phone is drawn at true size; scale it so the whole device fits the window.
+  const [scale, setScale] = useState(1);
+  useEffect(() => {
+    const fit = () => setScale(Math.max(0.62, Math.min(0.9, (window.innerHeight - 90) / 904)));
+    fit();
+    window.addEventListener('resize', fit);
+    return () => window.removeEventListener('resize', fit);
+  }, []);
 
   useEffect(() => {
     void api.state().then((s) => { setServer(s); setPayeeId(s.payees[0].id); });
@@ -119,12 +127,12 @@ export default function App() {
         <button className={show === 'api' ? 'on' : ''} onClick={() => setShow('api')}>API calls</button>
       </div>
 
-      <main className="stage" data-show={show}>
+      <main className="stage" data-show={show} style={{ '--s': scale } as React.CSSProperties}>
         <div className="col-app">
           <ol className="rail" aria-label="Steps">
             {RAIL.map((r, i) => <li key={r} className={i < at ? 'done' : i === at ? 'now' : ''}>{String(i + 1).padStart(2, '0')} {r}</li>)}
           </ol>
-          <div className="device">
+          <div className="fit"><div className="device">
             <span className="btn-l action" /><span className="btn-l vol-up" /><span className="btn-l vol-down" />
             <span className="btn-r side" /><span className="btn-r camera" />
             <section className="phone" aria-label="Your app (the demo partner, Payday)">
@@ -152,7 +160,7 @@ export default function App() {
               </nav>
               <div className="home-bar" aria-hidden="true" />
             </section>
-          </div>
+          </div></div>
         </div>
         <Console server={server} />
       </main>
