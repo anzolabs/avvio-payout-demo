@@ -104,7 +104,7 @@ export default function App() {
         <div>
           <span className="eyebrow">Payouts API · live sandbox</span>
           <h1>Pay anyone, in their currency. One API.</h1>
-          <p>A worker sends part of their earned wages to family in Mexico. On the left, your app. On the right, every call your backend makes to Avvio: real requests, test money.</p>
+          <p>Someone sends money to family in Mexico. On the left, your app. On the right, every call your backend makes to Avvio: real requests, test money.</p>
         </div>
         <label className="signed-in">
           <span className="eyebrow">Signed in to the app as</span>

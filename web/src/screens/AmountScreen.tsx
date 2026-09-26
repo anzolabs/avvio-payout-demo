@@ -47,7 +47,7 @@ export function AmountScreen({ payee, account, initialAmount, onReview, onBack }
       <div className="chips">
         {AMOUNTS.map((a) => <button key={a} className={Number(value) === Number(a) ? 'on' : ''} onClick={() => setValue(a)}>${a}</button>)}
       </div>
-      <p className={valid || !value ? 'muted' : 'field-err'}>{money(payee.left)} available from your earned wages</p>
+      <p className={valid || !value ? 'muted' : 'field-err'}>{money(payee.left)} available to send</p>
     </Screen>
   );
 }

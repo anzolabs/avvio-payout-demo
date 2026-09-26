@@ -14,7 +14,7 @@ interface Props {
   onOpen: (w: Withdrawal) => void;
 }
 
-/** Home: earned wages to send, the people you send to, and what went out lately. */
+/** Home: funds available to send, the people you send to, and what went out lately. */
 export function HomeScreen({ payee, server, accounts, onSend, onPick, onNew, onOpen }: Props) {
   const [recent, setRecent] = useState<Withdrawal[]>([]);
   useEffect(() => {
@@ -25,7 +25,7 @@ export function HomeScreen({ payee, server, accounts, onSend, onPick, onNew, onO
     <Screen footer={<button className="cta" onClick={onSend}>Send money</button>}>
       <p className="hello">Hi {firstName(payee.name)}</p>
       <div className="balance">
-        <div className="eyebrow">Earned wages available</div>
+        <div className="eyebrow">Funds available</div>
         <div className="amount num">{money(payee.left)}</div>
         <div className="sub">{payee.note}</div>
       </div>
