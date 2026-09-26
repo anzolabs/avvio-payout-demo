@@ -8,18 +8,26 @@ backend makes along the way.
 
 No sign-up, no key. It runs on the Avvio sandbox: real API calls, test money.
 
-## What you're looking at
+## What you'll see
 
-- **On the left, your app.** "Payday" stands in for your product: someone
-  with funds available sends money to family in Mexico. Add a recipient, pick
-  an amount (you send USD, they receive MXN, priced live), review, and track it
-  until it lands.
-- **On the right, your backend.** Every request it makes to Avvio, as it
-  happens: method, path, status and latency. Click one to see the request and
-  response bodies, the `Idempotency-Key` and the `x-request-id`.
+The page is split in two:
 
-When you add a recipient, pick the account that decides what happens to every
-payout sent to it:
+- **Your app, on a phone.** "Payday" stands in for your product: someone with
+  funds available sends money to family in Mexico.
+- **Your backend, beside it.** Every request it makes to Avvio, as it happens:
+  method, path, status and latency. Click one to see the request and response
+  bodies, the `Idempotency-Key` and the `x-request-id`.
+
+Try one payout, about a minute end to end:
+
+1. Tap **Send money**, then add a recipient. The name is filled in; under
+   **Sandbox**, pick the account ending `0003`.
+2. Choose an amount. You send USD, they receive MXN, priced live.
+3. Review, send, and watch it go **Sent → Processing → Paid**, then **Returned
+   by the bank**. A payment that is paid and later returned is the case your
+   own ledger most needs to handle.
+
+The sandbox account you pick decides what happens to every payout sent to it:
 
 | Account (CLABE) | What happens |
 |---|---|
@@ -27,10 +35,6 @@ payout sent to it:
 | `012180000000000002` | Stays `processing`, then completes at about 60 s. |
 | `012180000000030001` | Fails with `account_invalid`; the money comes back. |
 | `012180000000045669` | Completes normally. |
-
-Start with `…0003`. A payment that is paid and then returned days later is
-the case your own ledger most needs to handle, and the demo shows it end to
-end.
 
 The code behind the demo is this repo: **`api/`** is the backend (NestJS +
 TypeScript, the only code that holds the key or calls Avvio) and **`web/`** is
