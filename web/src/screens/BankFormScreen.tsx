@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import { Account, Corridor, CorridorField, Payee } from '../api/types';
+import { SCENARIOS } from '../components/Console';
 import { BackLink, Screen } from '../components/Screen';
 
 // The same check the server applies for `checksum: "clabe"`: weights 3, 7, 1
@@ -59,6 +60,8 @@ export function BankFormScreen({ payeeId, payee, onSaved, onBack }: Props) {
   }, []);
 
   if (!corridor) return <Screen>{error ? <div className="note error">{error}</div> : <p className="muted">Loading the form…</p>}</Screen>;
+
+  const clabeField = corridor.fields.find((f) => f.checksum === 'clabe');
 
   const submit = async (ev: FormEvent) => {
     ev.preventDefault();
@@ -125,7 +128,16 @@ export function BankFormScreen({ payeeId, payee, onSaved, onBack }: Props) {
           </div>
         ))}
         {error && <div className="note error">{error}</div>}
-        <p className="muted">Sandbox: the last four digits decide what happens. See the console panel.</p>
+        {clabeField && (
+          <div className="field">
+            <label>Sandbox test accounts</label>
+            {SCENARIOS.map(([acct, what]) => (
+              <button type="button" className="chip" key={acct} title={what} onClick={() => setValues({ ...values, [clabeField.id]: acct })}>
+                ····{acct.slice(-4)} <span className="muted">{what}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </form>
     </Screen>
   );

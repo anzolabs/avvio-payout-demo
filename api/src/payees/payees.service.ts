@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { visitorOfId } from '../visitor';
 
 /** Someone the business pays: a contractor, a seller, a worker. */
 export interface Payee {
@@ -22,11 +23,20 @@ export class PayeesService {
     { id: 'payee_4473', name: 'Maria Chen', email: 'maria.chen@example.com', available: '540.25', note: 'Marketplace sales, settled' },
   ];
 
-  all(): Payee[] {
-    return this.payees;
+  /** A visitor to the hosted demo gets their own copy of each payee. */
+  all(vid = ''): Payee[] {
+    return vid ? this.payees.map((p) => ({ ...p, id: `${p.id}-${vid}` })) : this.payees;
   }
 
   byId(id: string): Payee | undefined {
-    return this.payees.find((p) => p.id === id);
+    const vid = visitorOfId(id);
+    const base = vid ? id.slice(0, -(vid.length + 1)) : id;
+    const p = this.payees.find((x) => x.id === base);
+    return p && { ...p, id };
+  }
+
+  /** Whether this visitor ('' when run locally) may act for this payee. */
+  owns(id: string, vid: string): boolean {
+    return visitorOfId(id) === vid && this.byId(id) !== undefined;
   }
 }

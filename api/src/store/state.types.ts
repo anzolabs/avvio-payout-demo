@@ -77,6 +77,8 @@ export interface LogLine {
   source: string;
   message: string;
   extra?: Record<string, unknown>;
+  /** Hosted demo: the visitor the line is about, taken from the ids it names. */
+  vid?: string;
 }
 
 export interface State {

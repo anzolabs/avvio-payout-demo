@@ -1,0 +1,37 @@
+# Deploys the hosted demo (payoutdemo.avvio.xyz) on every push to main.
+# Needs repository secrets: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID,
+# DEMO_AVVIO_API_KEY (an avvio_test_ key) and DEMO_AVVIO_ORG_ID.
+name: Deploy hosted demo
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+concurrency: deploy-demo
+jobs:
+  deploy:
+    if: github.repository == 'anzolabs/avvio-payout-demo'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: hosting/cloudflare
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - name: Refuse a live key
+        env:
+          KEY: ${{ secrets.DEMO_AVVIO_API_KEY }}
+        run: case "$KEY" in avvio_test_*) ;; *) echo "DEMO_AVVIO_API_KEY must be an avvio_test_ key"; exit 1;; esac
+      - run: npx wrangler deploy
+      - name: Secrets
+        env:
+          KEY: ${{ secrets.DEMO_AVVIO_API_KEY }}
+          ORG: ${{ secrets.DEMO_AVVIO_ORG_ID }}
+        run: |
+          printf '%s' "$KEY" | npx wrangler secret put AVVIO_API_KEY
+          printf '%s' "$ORG" | npx wrangler secret put AVVIO_ORG_ID

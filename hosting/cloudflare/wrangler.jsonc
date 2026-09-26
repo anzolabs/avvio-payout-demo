@@ -1,0 +1,17 @@
+{
+  "name": "avvio-payout-demo",
+  "main": "worker.js",
+  "compatibility_date": "2026-09-22",
+  "routes": [{ "pattern": "payoutdemo.avvio.xyz", "custom_domain": true }],
+  "containers": [
+    {
+      "class_name": "PayoutDemo",
+      "image": "./Dockerfile",
+      "image_build_context": "../..",
+      "instance_type": "basic",
+      "max_instances": 1
+    }
+  ],
+  "durable_objects": { "bindings": [{ "class_name": "PayoutDemo", "name": "PAYOUT_DEMO" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["PayoutDemo"] }]
+}

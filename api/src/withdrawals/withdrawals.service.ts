@@ -9,6 +9,7 @@ import { PayeesService } from '../payees/payees.service';
 import { LogService } from '../store/log.service';
 import { StateRepository } from '../store/state.repository';
 import { Withdrawal, WithdrawalStatus } from '../store/state.types';
+import { visitorOfId } from '../visitor';
 import { applyPayout, toView, transition } from './withdrawal-status';
 
 /** "12.5" → 1250. Amounts are validated as at most two decimals before this. */
@@ -46,15 +47,16 @@ export class WithdrawalsService {
     return Math.max(cents(available) - committed, 0);
   }
 
-  list() {
+  list(vid = '') {
     return Object.values(this.repo.state.withdrawals)
+      .filter((w) => visitorOfId(w.payeeId) === vid)
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
       .map(toView);
   }
 
-  get(id: string) {
+  get(id: string, vid = '') {
     const wd = this.repo.state.withdrawals[id];
-    if (!wd) throw new NotFoundException('not found');
+    if (!wd || visitorOfId(wd.payeeId) !== vid) throw new NotFoundException('not found');
     return toView(wd);
   }
 
@@ -63,7 +65,7 @@ export class WithdrawalsService {
    * tap, or the app retrying a request that timed out, returns the withdrawal
    * already created for it instead of paying twice.
    */
-  async create(payeeId: string, amount: string, destinationAccountId: string, requestId: string, expectDestination?: string): Promise<Withdrawal> {
+  async create(vid: string, payeeId: string, amount: string, destinationAccountId: string, requestId: string, expectDestination?: string): Promise<Withdrawal> {
     if (!this.config.avvio.configured) throw new ServiceUnavailableException('backend is not configured: set AVVIO_API_KEY and AVVIO_ORG_ID in .env');
     const existing = Object.values(this.repo.state.withdrawals).find((w) => w.requestId === requestId);
     if (existing) {
@@ -72,7 +74,7 @@ export class WithdrawalsService {
       }
       return existing;
     }
-    const payee = this.payees.byId(payeeId);
+    const payee = this.payees.owns(payeeId, vid) ? this.payees.byId(payeeId) : undefined;
     if (!payee) throw new NotFoundException('unknown payee');
     const account = this.accounts.find(payeeId, destinationAccountId);
     if (!account) throw new ConflictException("choose one of the payee's saved accounts first");
@@ -83,7 +85,8 @@ export class WithdrawalsService {
     const left = this.leftCents(payeeId, payee.available);
     if (cents(amount) > left) throw new BadRequestException(`amount is more than ${payee.name} has left to withdraw ($${(left / 100).toFixed(2)})`);
 
-    const id = 'wd_' + randomBytes(5).toString('hex');
+    const hex = randomBytes(5).toString('hex');
+    const id = `wd_${vid ? vid + '_' : ''}${hex}`;
     const now = new Date().toISOString();
     const wd: Withdrawal = {
       id,
@@ -94,7 +97,7 @@ export class WithdrawalsService {
       sourceCurrency: 'USD',
       destinationAccountId,
       last4: account.last4,
-      reference: `DEMO-${id.slice(3)}`,
+      reference: `DEMO-${hex}`,
       idempotencyKey: randomUUID(),
       expectDestination,
       status: 'creating',
@@ -170,7 +173,7 @@ export class WithdrawalsService {
         const err = e as AvvioError;
         wd.error = { type: err.type, message: err.message, requestId: err.requestId, errors: err.errors };
         transition(wd, 'error', 'api', `${err.status} ${err.type}`);
-        this.log.log('api', `POST /payouts refused: ${err.status} ${err.type}`, { requestId: err.requestId, body: err.body });
+        this.log.log('api', `POST /payouts for ${wd.id} refused: ${err.status} ${err.type}`, { requestId: err.requestId, body: err.body });
       }
     }
     this.repo.save();

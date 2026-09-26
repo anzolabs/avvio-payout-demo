@@ -3,7 +3,7 @@ import { api, hhmmss } from '../api/client';
 import { ServerState } from '../api/types';
 import { useBackendLog } from '../hooks/useBackendLog';
 
-const SCENARIOS: [string, string][] = [
+export const SCENARIOS: [string, string][] = [
   ['012180000000070003', 'completes, then the bank returns it'],
   ['012180000000000002', 'slow: shows processing, completes at 60 s'],
   ['012180000000030001', 'fails, account invalid'],
@@ -54,6 +54,12 @@ export function Console({ server }: { server: ServerState }) {
         {p && (p.thresholdUsd == null ? <Badge cls="green">no approval threshold</Badge> : <Badge cls="amber">threshold {p.thresholdUsd}: payouts above it wait for approval</Badge>)}
         <Badge cls="grey">pays {server.currency}</Badge>
       </div>
+      {server.publicDemo && (
+        <div className="tips">
+          <strong>Live demo on the Avvio sandbox.</strong> Real API calls, test money, test accounts only. Your payees and payouts are
+          visible to you alone. To run it with your own key, see <a href="https://github.com/anzolabs/avvio-payout-demo" target="_blank" rel="noreferrer">the repo</a>.
+        </div>
+      )}
       <div className="tips">
         <strong>Sandbox outcomes.</strong> The last four digits of the account a payee registers pick what every payout to it does:
         <table><tbody>
@@ -61,7 +67,7 @@ export function Console({ server }: { server: ServerState }) {
         </tbody></table>
       </div>
       <div className="console-actions">
-        <button onClick={fund}>Fund sandbox $1,000</button>
+        {!server.publicDemo && <button onClick={fund}>Fund sandbox $1,000</button>}
         <span>{balance}</span>
         <span className="spacer" />
         <button onClick={clear} title="Clears this panel only; the backend keeps its log">Clear</button>

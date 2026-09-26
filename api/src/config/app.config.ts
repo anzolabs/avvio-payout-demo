@@ -4,6 +4,8 @@ import { join } from 'node:path';
 /** Everything the backend reads from the environment, resolved once at boot. */
 export interface AppConfig {
   readonly port: number;
+  /** The hosted demo: one shared sandbox key, visitors kept apart by a cookie. See visitor.ts. */
+  readonly publicDemo: boolean;
   readonly host: string;
   /** Destination currency for every payout. MXN is the sandbox corridor. */
   readonly currency: string;
@@ -51,6 +53,7 @@ export function loadConfig(): AppConfig {
   }
   return {
     port: Number(process.env.PORT ?? 4300),
+    publicDemo: process.env.DEMO_PUBLIC === '1',
     /** Loopback only by default. Expose the webhook path through a tunnel, not the app. */
     host: process.env.HOST ?? '127.0.0.1',
     currency: (process.env.DESTINATION_CURRENCY ?? 'MXN').toUpperCase(),
