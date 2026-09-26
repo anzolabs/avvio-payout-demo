@@ -526,6 +526,38 @@ Before the first live payout:
 
 ## Agent runbook
 
+### Quickest: connect the MCP servers
+
+Claude Code:
+
+```bash
+claude mcp add avvio-payments -e AVVIO_API_KEY=avvio_test_… -e AVVIO_ORG_ID=… -- npx -y @avvio/payments mcp
+claude mcp add --transport http avvio-docs https://avvio-docs.pages.dev/mcp
+```
+
+Cursor, Claude Desktop and other MCP clients:
+
+```json
+{
+  "mcpServers": {
+    "avvio-payments": {
+      "command": "npx",
+      "args": ["-y", "@avvio/payments", "mcp"],
+      "env": { "AVVIO_API_KEY": "avvio_test_…", "AVVIO_ORG_ID": "…" }
+    },
+    "avvio-docs": { "type": "http", "url": "https://avvio-docs.pages.dev/mcp" }
+  }
+}
+```
+
+`avvio-payments` acts in your sandbox and tells the agent how to pay someone
+correctly; money-moving tools need an explicit `confirm: true`. Run its
+**`sandbox_walkthrough`** prompt to watch one payout get paid and then returned,
+or **`integrate_payouts`** to have it plan and build the integration in your
+codebase from this repo. `avvio-docs` searches the documentation.
+
+### Without MCP: one prompt
+
 One prompt for a coding agent, in sandbox. Replace the two placeholders; it
 stops where a human is required.
 
