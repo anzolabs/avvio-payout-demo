@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="380" height="68" viewBox="0 0 380 68" role="img" aria-label="Try the live demo">
+  <rect width="380" height="68" rx="34" fill="#121A02"/>
+  <rect x="34" y="29" width="10" height="10" rx="2" fill="#B9FA4B"/>
+  <text x="60" y="42" fill="#FAF9F6" font-family="Open Sans, -apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" font-size="21" font-weight="700" letter-spacing="0.3">Try the live demo  →</text>
+</svg>
