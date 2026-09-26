@@ -44,6 +44,39 @@ TypeScript, the only code that holds the key or calls Avvio) and **`web/`** is
 the app (React + Vite). For the reasoning behind each step, read
 **[INTEGRATION_GUIDE.md](INTEGRATION_GUIDE.md)**.
 
+## Build it with an AI agent
+
+Connect your coding agent to Avvio over MCP with your sandbox key and
+organization ID (both on the **Developer** page of the dashboard):
+
+Claude Code:
+
+```bash
+claude mcp add avvio-payments -e AVVIO_API_KEY=avvio_test_… -e AVVIO_ORG_ID=… -- npx -y @avvio/payments mcp
+claude mcp add --transport http avvio-docs https://avvio-docs.pages.dev/mcp
+```
+
+Cursor, Claude Desktop and other MCP clients:
+
+```json
+{
+  "mcpServers": {
+    "avvio-payments": {
+      "command": "npx",
+      "args": ["-y", "@avvio/payments", "mcp"],
+      "env": { "AVVIO_API_KEY": "avvio_test_…", "AVVIO_ORG_ID": "…" }
+    },
+    "avvio-docs": { "type": "http", "url": "https://avvio-docs.pages.dev/mcp" }
+  }
+}
+```
+
+`avvio-payments` acts in your sandbox and tells the agent how to pay someone
+correctly; money-moving tools need an explicit `confirm: true`. Run its
+**`sandbox_walkthrough`** prompt to watch one payout get paid and then returned,
+or **`integrate_payouts`** to have it plan and build the integration in your
+codebase from this repo. `avvio-docs` searches the documentation.
+
 ## Build it into your own backend
 
 This is the part to copy. Your backend makes the same calls the demo makes,
