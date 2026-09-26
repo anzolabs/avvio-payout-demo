@@ -55,6 +55,9 @@ export interface Account {
   id: string;
   destinationAccountId: string;
   last4: string | null;
+  bank: string | null;
+  /** The name on the account: a family member. Null means the payee's own. */
+  holder: string | null;
   currency: string;
   registeredAt: string;
 }
@@ -75,6 +78,7 @@ export interface Withdrawal {
   payeeName: string;
   amount: string;
   last4: string | null;
+  holder?: string | null;
   reference: string;
   status: WithdrawalStatus;
   payoutId?: string;
@@ -90,11 +94,25 @@ export interface Withdrawal {
   createdAt: string;
 }
 
+/** One request the backend made to Avvio. Account numbers arrive masked. */
+export interface ApiCall {
+  method: string;
+  path: string;
+  status: number;
+  ms: number;
+  requestId: string | null;
+  idempotencyKey?: string;
+  replayed?: boolean;
+  req?: unknown;
+  res?: unknown;
+}
+
 export interface LogLine {
   at: string;
   source: string;
   message: string;
   extra?: { requestId?: string | null };
+  call?: ApiCall;
 }
 
 /** Nothing moves these any more. */

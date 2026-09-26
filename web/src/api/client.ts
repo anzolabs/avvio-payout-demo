@@ -30,8 +30,8 @@ export const api = {
   corridor: () => request<Corridor>('GET', '/api/corridor'),
   quote: (amount: string) => request<Quote>('GET', `/api/quote?amount=${encodeURIComponent(amount)}`),
   accounts: (payeeId: string) => request<{ accounts: Account[] }>('GET', `/api/payees/${payeeId}/accounts`),
-  addAccount: (payeeId: string, details: Record<string, string>, requestId: string) =>
-    request<{ account: Account }>('POST', `/api/payees/${payeeId}/accounts`, { details, requestId }),
+  addAccount: (payeeId: string, details: Record<string, string>, requestId: string, holderName?: string) =>
+    request<{ account: Account }>('POST', `/api/payees/${payeeId}/accounts`, { details, requestId, ...(holderName ? { holderName } : {}) }),
   removeAccount: (payeeId: string, methodId: string) =>
     request<{ accounts: Account[] }>('DELETE', `/api/payees/${payeeId}/accounts/${methodId}`),
   withdrawals: () => request<Withdrawal[]>('GET', '/api/withdrawals'),
@@ -43,5 +43,8 @@ export const api = {
   fundSandbox: () => request<{ balance: string }>('POST', '/api/sandbox/fund'),
 };
 
-export const money = (s: string | number): string => '$' + Number(s).toFixed(2);
+export const money = (s: string | number): string => '$' + Number(s).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 export const hhmmss = (iso: string): string => new Date(iso).toTimeString().slice(0, 8);
+export const fmt = (n: string | number): string => Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+export const initials = (name: string): string => name.split(/\s+/).filter(Boolean).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
+export const firstName = (name: string): string => name.split(/\s+/)[0];

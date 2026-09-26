@@ -1,9 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { visitorContext, visitorOfId } from '../visitor';
 import { Interval } from '@nestjs/schedule';
 import { AvvioClient } from '../avvio/avvio.client';
 import { APP_CONFIG, AppConfig } from '../config/app.config';
 import { LogService } from '../store/log.service';
 import { StateRepository } from '../store/state.repository';
+import { Withdrawal } from '../store/state.types';
 import { applyApproval, applyPayout, OPEN_STATUSES } from '../withdrawals/withdrawal-status';
 import { WithdrawalsService } from '../withdrawals/withdrawals.service';
 
@@ -51,28 +53,32 @@ export class FastPollJob {
     const cutoff = Date.now() - WINDOW_MS;
     const open = Object.values(this.repo.state.withdrawals).filter((w) => OPEN_STATUSES.includes(w.status) && !this.withdrawals.isSending(w.id));
     for (const wd of open) {
-      try {
-        if (wd.status === 'unknown' || wd.status === 'creating') {
-          await this.withdrawals.resolve(wd);
-          continue;
-        }
-        if (Date.parse(wd.createdAt) < cutoff) continue;
-        if (wd.status === 'awaiting_approval' && wd.approvalId) {
-          const approval = await this.avvio.approval(wd.approvalId);
-          if (applyApproval(wd, approval, 'poll')) {
-            this.repo.save();
-            this.log.log('poll', `GET /payouts/approvals/${wd.approvalId} → ${approval.status}, ${wd.id} now ${wd.status}`);
-          }
-          continue;
-        }
-        const p = wd.payoutId ? await this.avvio.payout(wd.payoutId) : await this.avvio.payoutByReference(wd.reference);
-        if (p && applyPayout(wd, p, 'poll')) {
-          this.repo.save();
-          this.log.log('poll', `GET /orders/${p.payoutId} → ${p.status}, ${wd.id} now ${wd.status}`);
-        }
-      } catch (e) {
-        this.log.log('poll', `poll failed for ${wd.id}: ${e instanceof Error ? e.message : String(e)}`);
+      await visitorContext.run(visitorOfId(wd.payeeId), () => this.check(wd, cutoff));
+    }
+  }
+
+  private async check(wd: Withdrawal, cutoff: number): Promise<void> {
+    try {
+      if (wd.status === 'unknown' || wd.status === 'creating') {
+        await this.withdrawals.resolve(wd);
+        return;
       }
+      if (Date.parse(wd.createdAt) < cutoff) return;
+      if (wd.status === 'awaiting_approval' && wd.approvalId) {
+        const approval = await this.avvio.approval(wd.approvalId);
+        if (applyApproval(wd, approval, 'poll')) {
+          this.repo.save();
+          this.log.log('poll', `GET /payouts/approvals/${wd.approvalId} → ${approval.status}, ${wd.id} now ${wd.status}`);
+        }
+        return;
+      }
+      const p = wd.payoutId ? await this.avvio.payout(wd.payoutId) : await this.avvio.payoutByReference(wd.reference);
+      if (p && applyPayout(wd, p, 'poll')) {
+        this.repo.save();
+        this.log.log('poll', `GET /orders/${p.payoutId} → ${p.status}, ${wd.id} now ${wd.status}`);
+      }
+    } catch (e) {
+      this.log.log('poll', `poll failed for ${wd.id}: ${e instanceof Error ? e.message : String(e)}`);
     }
   }
 }

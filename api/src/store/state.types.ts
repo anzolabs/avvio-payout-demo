@@ -3,6 +3,12 @@ export interface Account {
   methodId: string;
   destinationAccountId: string;
   last4: string | null;
+  /** From the CLABE's first three digits, for display. */
+  bank?: string | null;
+  /** Who the account belongs to: a family member, say. Absent means the payee's own account. */
+  holder?: string | null;
+  /** Our id for that person at Avvio (their beneficiary's externalId). Absent means the payee's own. */
+  recipientKey?: string;
   currency: string;
   registeredAt: string;
 }
@@ -39,6 +45,8 @@ export interface Withdrawal {
   sourceCurrency: 'USD';
   destinationAccountId: string;
   last4: string | null;
+  /** The name on the receiving account. */
+  holder?: string | null;
   reference: string;
   /** Persisted before the send; never leaves the backend. */
   idempotencyKey: string;
@@ -72,6 +80,20 @@ export interface Withdrawal {
   updatedAt: string;
 }
 
+/** One request to Avvio: what the console's timeline shows. */
+export interface ApiCall {
+  method: string;
+  path: string;
+  /** 0 when there was no response (a timeout or a network error). */
+  status: number;
+  ms: number;
+  requestId: string | null;
+  idempotencyKey?: string;
+  replayed?: boolean;
+  req?: unknown;
+  res?: unknown;
+}
+
 export interface LogLine {
   at: string;
   source: string;
@@ -79,6 +101,7 @@ export interface LogLine {
   extra?: Record<string, unknown>;
   /** Hosted demo: the visitor the line is about, taken from the ids it names. */
   vid?: string;
+  call?: ApiCall;
 }
 
 export interface State {
@@ -96,7 +119,6 @@ export interface State {
    * same snapshot, not one that already includes the account it added.
    */
   pendingRegistrations?: Record<string, string[]>;
-  log: LogLine[];
 }
 
 export const emptyState = (): State => ({
@@ -106,5 +128,4 @@ export const emptyState = (): State => ({
   seenEvents: [],
   eventsCursor: null,
   pendingRegistrations: {},
-  log: [],
 });

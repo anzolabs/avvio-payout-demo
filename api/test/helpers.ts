@@ -20,7 +20,7 @@ export function testConfig(): AppConfig {
 
 export function testStore(config = testConfig()) {
   const repo = new StateRepository(config);
-  const log = new LogService(repo);
+  const log = new LogService();
   // Keep test output quiet.
   (log as unknown as { logger: { log: () => void } }).logger = { log: () => undefined };
   return { config, repo, log };

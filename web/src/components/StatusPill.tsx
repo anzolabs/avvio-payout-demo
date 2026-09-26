@@ -1,20 +1,20 @@
 import { WithdrawalStatus } from '../api/types';
 
-// Withdrawal status → badge colour and the words the payee reads.
+// Withdrawal status → tone and the words the payee reads. Every pill carries a dot as well as a word.
 const PILL: Record<WithdrawalStatus, [string, string]> = {
-  creating: ['blue', 'Sending'],
-  unknown: ['blue', 'Confirming'],
-  awaiting_approval: ['amber', 'Waiting for approval'],
-  sent: ['blue', 'Sent'],
-  processing: ['blue', 'Processing'],
-  completed: ['green', 'Paid'],
-  returned: ['amber', 'Returned by bank'],
-  failed: ['red', 'Failed'],
+  creating: ['live', 'Sending'],
+  unknown: ['live', 'Confirming'],
+  awaiting_approval: ['warn', 'Awaiting approval'],
+  sent: ['live', 'Sent'],
+  processing: ['live', 'Processing'],
+  completed: ['ok', 'Paid'],
+  returned: ['warn', 'Returned'],
+  failed: ['bad', 'Failed'],
   canceled: ['grey', 'Canceled'],
-  error: ['red', 'Could not send'],
+  error: ['bad', 'Not sent'],
 };
 
 export function StatusPill({ status }: { status: WithdrawalStatus }) {
-  const [colour, text] = PILL[status] ?? ['grey', status];
-  return <span className={'pill ' + colour}>{text}</span>;
+  const [tone, text] = PILL[status] ?? ['grey', status];
+  return <span className={'pill ' + tone}>{text}</span>;
 }

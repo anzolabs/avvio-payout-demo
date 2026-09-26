@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { randomBytes } from 'node:crypto';
 import type { NextFunction, Request, Response } from 'express';
 
@@ -17,6 +18,9 @@ export const TEST_CLABES = ['012180000000070003', '012180000000000002', '0121800
 
 type WithVisitor = Request & { vid?: string };
 
+/** The visitor a piece of work is for, so the calls it makes land in their console. */
+export const visitorContext = new AsyncLocalStorage<string>();
+
 export const visitorOf = (req: Request): string => (req as WithVisitor).vid ?? '';
 export const visitorOfId = (id: string): string => id.match(VID)?.[0] ?? '';
 
@@ -28,7 +32,7 @@ export function assignVisitor(req: Request, res: Response, next: NextFunction): 
     res.setHeader('Set-Cookie', `${COOKIE}=${vid}; Path=/; Max-Age=2592000; HttpOnly; Secure; SameSite=Lax`);
   }
   (req as WithVisitor).vid = vid;
-  next();
+  visitorContext.run(vid, next);
 }
 
 // ponytail: in-memory, per process. Enough for one small box; move to Cloudflare rate limiting if it ever isn't.

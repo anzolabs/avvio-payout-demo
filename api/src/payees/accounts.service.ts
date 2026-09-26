@@ -14,13 +14,16 @@ export interface AccountView {
   id: string;
   destinationAccountId: string;
   last4: string | null;
+  bank: string | null;
+  holder: string | null;
   currency: string;
   registeredAt: string;
 }
 
 /**
- * A payee's bank accounts. The first one registers the payee with Avvio as a
- * beneficiary; every later one is another payment method on that beneficiary.
+ * The accounts a payee pays into. Each person paid (the payee, or a family
+ * member by name) is one beneficiary at Avvio, keyed by our externalId for
+ * them; their first account registers them, later ones add payment methods.
  * An account number passes through here exactly once, on the way to Avvio,
  * and is never stored or logged. What stays is ids and a last4.
  */
@@ -43,7 +46,7 @@ export class AccountsService {
   }
 
   /** `details` is keyed by the corridor's field ids, exactly as the form rendered them. */
-  async add(payeeId: string, details: Record<string, string>, requestId: string): Promise<AccountView> {
+  async add(payeeId: string, details: Record<string, string>, requestId: string, holderName?: string): Promise<AccountView> {
     const payee = this.payees.byId(payeeId);
     if (!payee) throw new NotFoundException('unknown payee');
     // Only what a corridor form can produce: field ids to short strings. Anything
@@ -53,13 +56,15 @@ export class AccountsService {
       throw new BadRequestException('details must map corridor field ids to strings of at most 128 characters');
     }
     const state = this.repo.state;
+    // Our id for the person being paid: the payee, or `payee-rosa-lopez` for a family member.
+    const key = holderName ? `${payeeId}-${slug(holderName)}` : payeeId;
     // The payee's methods on Avvio before this request was FIRST sent, by id,
     // so the one it adds can be told apart from the ones it already had. A
     // retry reuses the stored snapshot: a fresh one would already contain the
     // account the lost first attempt registered.
     const pending = (state.pendingRegistrations ??= {});
     if (!pending[requestId]) {
-      pending[requestId] = [...(await this.methodIds(payeeId))];
+      pending[requestId] = [...(await this.methodIds(key))];
       this.repo.save();
     }
     const before = new Set(pending[requestId]);
@@ -74,9 +79,9 @@ export class AccountsService {
 
     let beneficiary: Beneficiary;
     try {
-      beneficiary = await this.register(payeeId, payee.name, payee.email, method, idempotencyKey);
+      beneficiary = await this.register(key, holderName ?? payee.name, holderName ? payee.email.replace('@', `+${slug(holderName)}@`) : payee.email, method, idempotencyKey);
     } catch (e) {
-      const held = e instanceof AvvioError ? await this.alreadyHeld(payeeId, e) : undefined;
+      const held = e instanceof AvvioError ? await this.alreadyHeld(key, e) : undefined;
       if (held) {
         beneficiary = held;
       } else if (e instanceof AvvioError) {
@@ -101,8 +106,8 @@ export class AccountsService {
       this.log.log('api', `registered for ${payeeId}, but could not tell which of its accounts is the one just sent; refused to guess`);
       throw new HttpException({ message: 'Registered, but it is ambiguous which saved account this is. Remove duplicate accounts for this payee and try again.' }, 409);
     }
-    const account: Account = { methodId: m.id, destinationAccountId: m.destinationAccountId, last4: m.last4 ?? null, currency: this.config.currency, registeredAt: new Date().toISOString() };
-    state.recipients[payeeId] = beneficiary.id;
+    const account: Account = { methodId: m.id, destinationAccountId: m.destinationAccountId, last4: m.last4 ?? null, bank: bankOf(details), holder: holderName ?? null, ...(holderName ? { recipientKey: key } : {}), currency: this.config.currency, registeredAt: new Date().toISOString() };
+    state.recipients[key] = beneficiary.id;
     state.accounts[payeeId] = [...(state.accounts[payeeId] ?? []).filter((a) => a.destinationAccountId !== account.destinationAccountId), account];
     this.repo.save();
     return toView(account);
@@ -114,8 +119,9 @@ export class AccountsService {
     const acc = (state.accounts[payeeId] ?? []).find((a) => a.methodId === methodId);
     if (acc) {
       try {
-        await this.avvio.deleteMethod(state.recipients[payeeId], methodId);
-        this.log.log('api', `DELETE /recipients/${state.recipients[payeeId]}/methods/${methodId} for ${payeeId}`);
+        const key = acc.recipientKey ?? payeeId;
+        await this.avvio.deleteMethod(state.recipients[key], methodId);
+        this.log.log('api', `DELETE /recipients/${state.recipients[key]}/methods/${methodId} for ${key}`);
       } catch (e) {
         if (!(e instanceof AvvioError) || e.status !== 404) throw e;
       }
@@ -125,15 +131,15 @@ export class AccountsService {
     return this.list(payeeId);
   }
 
-  /** Ids of the payee's payment methods on Avvio right now; empty if not registered yet. */
-  private async methodIds(payeeId: string): Promise<Set<string>> {
+  /** Ids of this person's payment methods on Avvio right now; empty if not registered yet. */
+  private async methodIds(externalId: string): Promise<Set<string>> {
     try {
-      const b = await this.avvio.beneficiaryByExternalId(payeeId);
+      const b = await this.avvio.beneficiaryByExternalId(externalId);
       return new Set((b.paymentMethods ?? []).map((m) => m.id));
     } catch (e) {
       if (e instanceof AvvioError && e.status === 404) return new Set();
       if (e instanceof AvvioError) {
-        this.log.log('api', `GET /recipients/external/${payeeId} failed: ${e.status} ${e.type}`, { requestId: e.requestId });
+        this.log.log('api', `GET /recipients/external/${externalId} failed: ${e.status} ${e.type}`, { requestId: e.requestId });
         throw new HttpException({ message: e.message, type: e.type }, e.status);
       }
       throw e;
@@ -146,36 +152,36 @@ export class AccountsService {
    * lost). Adopt it, named by the error, instead of failing. Owned by anyone
    * else, it stays an error.
    */
-  private async alreadyHeld(payeeId: string, e: AvvioError): Promise<Beneficiary | undefined> {
+  private async alreadyHeld(externalId: string, e: AvvioError): Promise<Beneficiary | undefined> {
     const body = e.body as { existingRecipientId?: string; existingMethodId?: string } | null;
     if (e.type !== 'BANK_ACCOUNT_ALREADY_LINKED' || !body?.existingMethodId) return undefined;
-    const b = await this.avvio.beneficiaryByExternalId(payeeId).catch(() => undefined);
+    const b = await this.avvio.beneficiaryByExternalId(externalId).catch(() => undefined);
     if (!b || b.id !== body.existingRecipientId) return undefined;
     const method = b.paymentMethods.find((m) => m.id === body.existingMethodId);
     if (!method) return undefined;
-    this.log.log('api', `account already registered for ${payeeId} (${method.last4 ?? '····'}); using it`, { requestId: e.requestId });
+    this.log.log('api', `account already registered for ${externalId} (${method.last4 ?? '····'}); using it`, { requestId: e.requestId });
     return { ...b, method };
   }
 
   /** First account: POST /recipients. Later ones: POST /recipients/{id}/methods. */
-  private async register(payeeId: string, name: string, email: string, method: PaymentMethodInput, idempotencyKey: string): Promise<Beneficiary> {
-    let recipientId = this.repo.state.recipients[payeeId];
+  private async register(externalId: string, name: string, email: string, method: PaymentMethodInput, idempotencyKey: string): Promise<Beneficiary> {
+    let recipientId = this.repo.state.recipients[externalId];
     if (!recipientId) {
       try {
         // externalId is OUR id for them, so a repeat returns the same
         // beneficiary instead of a second one.
-        const r = await this.avvio.createBeneficiary({ type: 'individual', name, email, externalId: payeeId, method }, idempotencyKey);
-        this.log.log('api', `POST /recipients → ${r.status} for ${payeeId}${r.replayed ? ' (replayed)' : ''}`, { requestId: r.requestId });
+        const r = await this.avvio.createBeneficiary({ type: 'individual', name, email, externalId, method }, idempotencyKey);
+        this.log.log('api', `POST /recipients → ${r.status} for ${externalId}${r.replayed ? ' (replayed)' : ''}`, { requestId: r.requestId });
         return r.body;
       } catch (e) {
         if (!(e instanceof AvvioError) || e.type !== 'BENEFICIARY_EXTERNAL_ID_CONFLICT') throw e;
         // Registered before with another account (a previous run of this
         // demo, say). Find them by our id and add the account instead.
-        recipientId = (await this.avvio.beneficiaryByExternalId(payeeId)).id;
+        recipientId = (await this.avvio.beneficiaryByExternalId(externalId)).id;
       }
     }
     const r = await this.avvio.addMethod(recipientId, method, idempotencyKey);
-    this.log.log('api', `POST /recipients/${recipientId}/methods → ${r.status} for ${payeeId}`, { requestId: r.requestId });
+    this.log.log('api', `POST /recipients/${recipientId}/methods → ${r.status} for ${externalId}`, { requestId: r.requestId });
     return r.body;
   }
 }
@@ -184,6 +190,8 @@ const toView = (a: Account): AccountView => ({
   id: a.methodId,
   destinationAccountId: a.destinationAccountId,
   last4: a.last4,
+  bank: a.bank ?? null,
+  holder: a.holder ?? null,
   currency: a.currency,
   registeredAt: a.registeredAt,
 });
@@ -215,3 +223,19 @@ function sentTail(details: Record<string, string>): string | null {
   const digits = Object.values(details).map((v) => v.replace(/\D/g, '')).filter((v) => v.length >= 4);
   return digits.length ? digits.sort((x, y) => y.length - x.length)[0].slice(-4) : null;
 }
+
+// ponytail: the banks behind most CLABEs; an unknown prefix just shows no name. Banxico's full list if it matters.
+const CLABE_BANKS: Record<string, string> = {
+  '002': 'Banamex', '012': 'BBVA México', '014': 'Santander', '021': 'HSBC', '030': 'Banbajío', '036': 'Inbursa',
+  '044': 'Scotiabank', '058': 'Banregio', '072': 'Banorte', '127': 'Banco Azteca', '137': 'BanCoppel', '646': 'STP', '722': 'Mercado Pago',
+};
+
+/** The bank a CLABE belongs to, from its first three digits. */
+export function bankOf(details: Record<string, string>): string | null {
+  const clabe = Object.values(details).map((v) => v.replace(/\D/g, '')).find((v) => v.length === 18);
+  return clabe ? CLABE_BANKS[clabe.slice(0, 3)] ?? null : null;
+}
+
+/** A name as an id fragment: "Rosa López" → "rosa-lopez". */
+export const slug = (name: string): string =>
+  name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40);

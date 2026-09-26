@@ -24,3 +24,18 @@ test('log lines are attributed by the ids they name', () => {
   assert.equal(visitorOfId('GET /orders/x → completed, wd_ab12cd34ef now completed'), '');
   assert.equal(visitorOfId('backfilled 12 event(s); cursor 2026-09-26'), '');
 });
+
+test('the console never shows a full account number', async () => {
+  const { mask } = await import('../src/store/log.service');
+  assert.deepEqual(mask({ method: { recipientDetails: { clabeNumber: '012180000000070003' } }, amount: '25.00' }), {
+    method: { recipientDetails: { clabeNumber: '····0003' } },
+    amount: '25.00',
+  });
+});
+
+test('a family recipient gets a stable id of their own, still attributed to the visitor', async () => {
+  const { slug } = await import('../src/payees/accounts.service');
+  assert.equal(slug('Rosa López'), 'rosa-lopez');
+  assert.equal(slug("  D'Angelo  Pérez-Soto "), 'd-angelo-perez-soto');
+  assert.equal(visitorOfId(`payee_4471-v0123456789-${slug('Rosa López')}`), 'v0123456789');
+});

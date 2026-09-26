@@ -4,6 +4,12 @@ import { Account, Corridor, CorridorField, Payee } from '../api/types';
 import { SCENARIOS } from '../components/Console';
 import { BackLink, Screen } from '../components/Screen';
 
+// The banks behind most CLABEs (the backend keeps the same list); the rest just show no name.
+const CLABE_BANKS: Record<string, string> = {
+  '002': 'Banamex', '012': 'BBVA México', '014': 'Santander', '021': 'HSBC', '030': 'Banbajío', '036': 'Inbursa',
+  '044': 'Scotiabank', '058': 'Banregio', '072': 'Banorte', '127': 'Banco Azteca', '137': 'BanCoppel', '646': 'STP', '722': 'Mercado Pago',
+};
+
 // The same check the server applies for `checksum: "clabe"`: weights 3, 7, 1
 // repeating over digits 1 to 17, each product mod 10 before summing.
 function clabeOk(v: string): boolean {
@@ -51,6 +57,8 @@ export function BankFormScreen({ payeeId, payee, onSaved, onBack }: Props) {
   // timeout is the same request, registered once; different details are a
   // different request. The salt keeps the id from revealing the account.
   const [salt] = useState(() => crypto.randomUUID());
+  // Pre-filled so the first run is taps, not typing; any name works.
+  const [holder, setHolder] = useState('Rosa López');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -73,13 +81,14 @@ export function BankFormScreen({ payeeId, payee, onSaved, onBack }: Props) {
       if (err) errs[f.id] = err;
       if (value) details[f.id] = value;
     }
+    if (!/^\p{L}[\p{L} .'-]{1,59}$/u.test(holder.trim())) errs.holder = 'Enter their full name';
     setFieldErrors(errs);
     if (Object.keys(errs).length) return;
 
     setBusy(true);
     setError('');
     try {
-      const res = await api.addAccount(payeeId, details, await requestIdFor(salt, details));
+      const res = await api.addAccount(payeeId, details, await requestIdFor(salt, { ...details, holder: holder.trim() }), holder.trim());
       onSaved(res.account);
     } catch (e) {
       // The server names the field in errors[]; show it under the field when we can.
@@ -96,19 +105,27 @@ export function BankFormScreen({ payeeId, payee, onSaved, onBack }: Props) {
 
   const footer = (
     <>
-      <button className="cta" type="submit" form="bank" disabled={busy}>{busy ? 'Saving…' : 'Save account'}</button>
+      <button className="cta" type="submit" form="bank" disabled={busy}>{busy ? 'Saving…' : 'Save and continue'}</button>
       <BackLink onClick={onBack} disabled={busy} />
     </>
   );
 
+  const clabe = clabeField ? (values[clabeField.id] ?? '').replace(/\D/g, '') : '';
+  const bank = clabe.length >= 3 ? CLABE_BANKS[clabe.slice(0, 3)] : undefined;
+
   return (
     <Screen footer={footer}>
       <form id="bank" onSubmit={submit}>
-        <h3>Add a bank account</h3>
-        <p className="muted">{corridor.currency} account for {payee.name}. Saved for next time.</p>
+        <h2 className="title">Add someone new</h2>
+        <p className="muted">Their bank account in Mexico. Saved for {payee.name.split(' ')[0]}'s next transfer.</p>
+        <div className="field">
+          <label htmlFor="holder" className="eyebrow">Their full name</label>
+          <input id="holder" autoComplete="off" value={holder} onChange={(e) => setHolder(e.target.value)} />
+          {fieldErrors.holder && <p className="field-err">{fieldErrors.holder}</p>}
+        </div>
         {corridor.fields.map((f) => (
           <div className="field" key={f.id}>
-            <label htmlFor={f.id}>{f.title || f.id}</label>
+            <label htmlFor={f.id} className="eyebrow">{f.title || f.id}</label>
             {f.options?.length ? (
               <select id={f.id} value={values[f.id] ?? ''} onChange={(e) => setValues({ ...values, [f.id]: e.target.value })}>
                 <option value="">Select…</option>
@@ -119,21 +136,29 @@ export function BankFormScreen({ payeeId, payee, onSaved, onBack }: Props) {
                 id={f.id}
                 type="text"
                 autoComplete="off"
+                className="num"
                 inputMode={/\[0-9\]/.test(f.pattern ?? '') ? 'numeric' : 'text'}
+                placeholder={f === clabeField ? '18 digits' : undefined}
                 value={values[f.id] ?? ''}
                 onChange={(e) => setValues({ ...values, [f.id]: e.target.value })}
               />
+            )}
+            {f === clabeField && (
+              <div className="hint">
+                <span>{bank ?? (clabe.length >= 3 ? 'Bank not recognised' : '')}</span>
+                <span className={clabeOk(clabe) ? 'ok' : ''}>{clabeOk(clabe) ? '✓ Valid CLABE' : clabe ? `${clabe.length}/18` : ''}</span>
+              </div>
             )}
             {fieldErrors[f.id] && <p className="field-err">{fieldErrors[f.id]}</p>}
           </div>
         ))}
         {error && <div className="note error">{error}</div>}
         {clabeField && (
-          <div className="field">
-            <label>Sandbox test accounts</label>
+          <div className="tray">
+            <span className="eyebrow">Sandbox · pick an outcome · not part of your app</span>
             {SCENARIOS.map(([acct, what]) => (
-              <button type="button" className="chip" key={acct} title={what} onClick={() => setValues({ ...values, [clabeField.id]: acct })}>
-                ····{acct.slice(-4)} <span className="muted">{what}</span>
+              <button type="button" key={acct} onClick={() => setValues({ ...values, [clabeField.id]: acct })}>
+                <code>····{acct.slice(-4)}</code><span>{what}</span>
               </button>
             ))}
           </div>

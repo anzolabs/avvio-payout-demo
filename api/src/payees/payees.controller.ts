@@ -25,7 +25,7 @@ export class PayeesController {
 
   @Post(':payeeId/accounts')
   async add(@Req() req: Request, @Param('payeeId') payeeId: string, @Body() dto: AddAccountDto) {
-    return { account: await this.accounts.add(this.mine(req, payeeId), dto.details, dto.requestId) };
+    return { account: await this.accounts.add(this.mine(req, payeeId), dto.details, dto.requestId, dto.holderName) };
   }
 
   @Delete(':payeeId/accounts/:methodId')

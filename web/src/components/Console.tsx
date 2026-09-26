@@ -1,85 +1,190 @@
-import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
-import { api, hhmmss } from '../api/client';
-import { ServerState } from '../api/types';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { api, hhmmss, money } from '../api/client';
+import { ApiCall, LogLine, ServerState } from '../api/types';
 import { useBackendLog } from '../hooks/useBackendLog';
 
+/** Sandbox accounts: the last four digits pick what every payout to them does. */
 export const SCENARIOS: [string, string][] = [
-  ['012180000000070003', 'completes, then the bank returns it'],
-  ['012180000000000002', 'slow: shows processing, completes at 60 s'],
-  ['012180000000030001', 'fails, account invalid'],
-  ['012180000000045669', 'completes normally'],
+  ['012180000000070003', 'Paid, then returned by the bank'],
+  ['012180000000045669', 'Paid'],
+  ['012180000000000002', 'Slow: processing for about a minute'],
+  ['012180000000030001', 'Fails: account invalid'],
 ];
 
-function Badge({ cls, children }: { cls: string; children: React.ReactNode }) {
-  return <span className={'pill ' + cls}>{children}</span>;
+// Housekeeping the backend does on its own; shown only when asked for.
+const BACKGROUND_PATHS = /\/(events|policy|balance|sandbox\/fund)(\?|$)/;
+
+type Kind = 'call' | 'event' | 'note';
+interface Entry { key: string; line: LogLine; kind: Kind; background: boolean }
+
+function classify(line: LogLine, i: number): Entry {
+  const key = `${line.at}-${i}`;
+  if (line.call) return { key, line, kind: 'call', background: BACKGROUND_PATHS.test(line.call.path) };
+  if ((line.source === 'feed' || line.source === 'webhook') && /^payout/.test(line.message)) {
+    return { key, line, kind: 'event', background: / no change$/.test(line.message) };
+  }
+  // The backend's own narration; the calls above already say what happened.
+  // Lines that only echo a call already shown as its own row are background too.
+  return { key, line, kind: 'note', background: line.source !== 'api' || /^(GET|POST|PUT|PATCH|DELETE) /.test(line.message) };
 }
 
-/** The panel beside the phone: what the business's backend is doing, live. */
+const codeClass = (s: number) => (s >= 200 && s < 300 ? '' : s >= 400 && s < 500 ? 'warn' : 'bad');
+
+function Json({ value }: { value: unknown }) {
+  const text = JSON.stringify(value, null, 2);
+  const [copied, setCopied] = useState(false);
+  return (
+    <div style={{ position: 'relative' }}>
+      <button
+        type="button"
+        onClick={() => { void navigator.clipboard?.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1200); }}
+        style={{ position: 'absolute', right: 0, top: -22, border: 0, background: 'none', color: 'var(--c-dim)', font: '700 11px var(--font)', cursor: 'pointer' }}
+      >
+        {copied ? 'Copied' : 'Copy'}
+      </button>
+      <pre>{text}</pre>
+    </div>
+  );
+}
+
+function CallDetail({ call, base }: { call: ApiCall; base: string }) {
+  return (
+    <div className="detail">
+      <h4>Request</h4>
+      <div className="kv"><b>{call.method}</b> {base}{call.path}</div>
+      {call.idempotencyKey && <div className="kv">Idempotency-Key: <b>{call.idempotencyKey}</b></div>}
+      {call.req !== undefined && call.req !== null && <><h4>Body</h4><Json value={call.req} /></>}
+      <h4>Response</h4>
+      <div className="kv">
+        <b>{call.status || 'no response'}</b> · {call.ms} ms{call.requestId ? <> · x-request-id <b>{call.requestId}</b></> : null}
+        {call.replayed ? <> · <b>replayed</b>: the same key returned the stored answer</> : null}
+      </div>
+      {call.res !== undefined && call.res !== null && <><h4>Body</h4><Json value={call.res} /></>}
+    </div>
+  );
+}
+
+function Row({ e, open, fresh, onToggle, base, org }: { e: Entry; open: boolean; fresh: boolean; onToggle: () => void; base: string; org: string }) {
+  const { line, kind } = e;
+  if (kind === 'call' && line.call) {
+    const c = line.call;
+    return (
+      <div className={'entry' + (fresh ? ' fresh' : '')}>
+        <button type="button" onClick={onToggle} aria-expanded={open}>
+          <span className="time">{hhmmss(line.at)}</span>
+          <span className="verb">{c.method}</span>
+          <span className="path">{(org ? c.path.replace(org, '{orgId}') : c.path).split('?')[0]}</span>
+          <span className="meta"><span className={'code ' + codeClass(c.status)}>{c.status || '—'}</span><span>{c.ms} ms</span></span>
+        </button>
+        {open && <CallDetail call={c} base={base} />}
+      </div>
+    );
+  }
+  if (kind === 'event') {
+    const [type] = line.message.split(' ');
+    const now = line.message.match(/ now (\w+)$/)?.[1];
+    return (
+      <div className={'entry event' + (fresh ? ' fresh' : '')}>
+        <button type="button" onClick={onToggle}>
+          <span className="time">{hhmmss(line.at)}</span>
+          <span className="verb">EVENT</span>
+          <span className="path">{type}</span>
+          <span className="meta"><span>via {line.source === 'webhook' ? 'webhook' : 'events feed'}</span>{now && <span>→ {now}</span>}</span>
+        </button>
+        {type === 'payout.returned' && now === 'returned' && (
+          <div className="caption">The receiving bank sent the money back, days after “paid” in real life. Avvio told your backend, and the app updated on its own.</div>
+        )}
+        {open && <div className="detail"><div className="kv">{line.message}</div></div>}
+      </div>
+    );
+  }
+  return (
+    <div className={'entry narr' + (fresh ? ' fresh' : '')}>
+      <div className="line">
+        <span className="time">{hhmmss(line.at)}</span>
+        <span className="verb">{line.source === 'api' ? 'NOTE' : line.source.toUpperCase()}</span>
+        <span className="path">{line.message}</span>
+        <span />
+      </div>
+    </div>
+  );
+}
+
+/** The dark half: what the business's backend says to Avvio, call by call. */
 export function Console({ server }: { server: ServerState }) {
   const { lines, clear } = useBackendLog();
-  const [balance, setBalance] = useState('');
-  const pre = useRef<HTMLPreElement>(null);
+  const [balance, setBalance] = useState<string | null>(null);
+  const [showAll, setShowAll] = useState(false);
+  const [open, setOpen] = useState<string | null>(null);
+  const [fresh, setFresh] = useState<Set<string>>(new Set());
+  const seen = useRef<number | null>(null);
+  const feed = useRef<HTMLDivElement>(null);
 
   const refreshBalance = useCallback(async () => {
-    try {
-      const b = await api.balance();
-      setBalance(`balance ${b.amount} ${b.currency}`);
-    } catch {
-      setBalance('');
-    }
+    try { setBalance((await api.balance()).amount); } catch { setBalance(null); }
   }, []);
 
   useEffect(() => {
     if (!server.configured) return undefined;
     void refreshBalance();
-    // Payouts and returns move it; keep it current.
-    const t = setInterval(() => void refreshBalance(), 10_000);
+    const t = setInterval(() => void refreshBalance(), 15_000);
     return () => clearInterval(t);
   }, [server.configured, refreshBalance]);
-  useEffect(() => { if (pre.current) pre.current.scrollTop = pre.current.scrollHeight; }, [lines]);
+
+  const entries = lines.map(classify).filter((e) => showAll || !e.background);
+
+  // Rows that arrive after the first load glow for a moment, so a tap in the app visibly causes a call here.
+  useEffect(() => {
+    if (seen.current === null) { seen.current = lines.length; return; }
+    if (lines.length <= seen.current) { seen.current = lines.length; return; }
+    const added = new Set(lines.slice(seen.current).map((l, i) => `${l.at}-${seen.current! + i}`));
+    seen.current = lines.length;
+    setFresh(added);
+    const t = setTimeout(() => setFresh(new Set()), 1500);
+    if (feed.current) feed.current.scrollTop = feed.current.scrollHeight;
+    return () => clearTimeout(t);
+  }, [lines]);
 
   const fund = async () => {
-    try { await api.fundSandbox(); } catch (e) { alert(e instanceof Error ? e.message : String(e)); }
+    try { await api.fundSandbox(); } catch { /* shown by the balance staying put */ }
     void refreshBalance();
   };
 
   const p = server.policy;
   return (
-    <aside className="console" aria-label="Backend console">
-      <h2>Your backend</h2>
-      <div className="badges">
-        {server.configured ? <Badge cls={server.mode === 'live' ? 'red' : 'green'}>{server.mode} key</Badge> : <Badge cls="red">no API key</Badge>}
-        <Badge cls="grey">{server.orgId ? `org ${server.orgId.slice(0, 8)}…` : 'no org id'}</Badge>
-        {server.webhookConfigured ? <Badge cls="green">webhook secret set</Badge> : <Badge cls="amber">no webhook secret: polling + feed only</Badge>}
-        {p && (p.thresholdUsd == null ? <Badge cls="green">no approval threshold</Badge> : <Badge cls="amber">threshold {p.thresholdUsd}: payouts above it wait for approval</Badge>)}
-        <Badge cls="grey">pays {server.currency}</Badge>
-      </div>
-      {server.publicDemo && (
-        <div className="tips">
-          <strong>Live demo on the Avvio sandbox.</strong> Real API calls, test money, test accounts only. Your payees and payouts are
-          visible to you alone. To run it with your own key, see <a href="https://github.com/anzolabs/avvio-payout-demo" target="_blank" rel="noreferrer">the repo</a>.
+    <aside className="console" aria-label="Your backend and the Avvio API">
+      <div className="console-head">
+        <span className="eyebrow">Your backend ↔ Avvio API</span>
+        <h3>Every call here is real.</h3>
+        <div className="status-line">
+          <span><span className="live-dot" /><b>{server.mode === 'live' ? 'Live' : 'Sandbox'}</b> · test money</span>
+          {balance && <span>Balance <b className="num">{money(balance)}</b></span>}
+          <span>Pays <b>{server.currency}</b></span>
         </div>
-      )}
-      <div className="tips">
-        <strong>Sandbox outcomes.</strong> The last four digits of the account a payee registers pick what every payout to it does:
-        <table><tbody>
-          {SCENARIOS.map(([acct, what]) => <tr key={acct}><td><code>{acct}</code></td><td>{what}</td></tr>)}
-        </tbody></table>
+        <details>
+          <summary>Setup</summary>
+          <dl>
+            <dt>Base URL</dt><dd>{server.baseUrl}</dd>
+            <dt>Organization</dt><dd>{server.orgId || 'not set'}</dd>
+            <dt>API key</dt><dd>{server.configured ? `${server.mode} key, held by the backend only` : 'not set'}</dd>
+            <dt>Webhooks</dt><dd>{server.webhookConfigured ? 'signed, verified' : 'off: polling and the events feed'}</dd>
+            <dt>Approvals</dt><dd>{p?.thresholdUsd == null ? 'none' : `above ${money(p.thresholdUsd)}`}</dd>
+          </dl>
+          {!server.publicDemo && server.configured && <button className="btn ghost" style={{ marginTop: 12, color: 'var(--c-tx)', boxShadow: '0 0 0 1px var(--c-line) inset' }} onClick={fund}>Add $1,000 test money</button>}
+        </details>
       </div>
-      <div className="console-actions">
-        {!server.publicDemo && <button onClick={fund}>Fund sandbox $1,000</button>}
-        <span>{balance}</span>
+      <div className="console-tools">
+        <label><input type="checkbox" checked={showAll} onChange={(e) => setShowAll(e.target.checked)} /> Background activity</label>
         <span className="spacer" />
-        <button onClick={clear} title="Clears this panel only; the backend keeps its log">Clear</button>
+        <span>{entries.length} shown</span>
+        <button onClick={clear} title="Clears this view only">Clear</button>
       </div>
-      <pre ref={pre} aria-live="polite">
-        {lines.map((l, i) => (
-          <Fragment key={i}>
-            <span className={'src ' + l.source}>{hhmmss(l.at)} {l.source.padEnd(7)} </span>
-            {l.message}{l.extra?.requestId ? `  [x-request-id ${l.extra.requestId}]` : ''}{'\n'}
-          </Fragment>
+      <div className="feed" ref={feed}>
+        {entries.length === 0 && <div className="empty-feed">Tap <b>Send money</b> in the app. Each call your backend makes to Avvio appears here, with its request and response.</div>}
+        {entries.map((e) => (
+          <Row key={e.key} e={e} base={server.baseUrl} org={server.orgId} open={open === e.key} fresh={fresh.has(e.key)} onToggle={() => setOpen(open === e.key ? null : e.key)} />
         ))}
-      </pre>
+      </div>
     </aside>
   );
 }

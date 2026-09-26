@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { APP_CONFIG, AppConfig } from '../config/app.config';
+import { LogService } from '../store/log.service';
 import { AvvioError } from './avvio.error';
 import {
   Approval, Balance, Beneficiary, CorridorsResponse, CreateBeneficiaryBody, CreatePayoutBody,
@@ -28,7 +29,10 @@ export class AvvioClient {
   private readonly org: string;
   private readonly orgPath: string;
 
-  constructor(@Inject(APP_CONFIG) private readonly config: AppConfig) {
+  constructor(
+    @Inject(APP_CONFIG) private readonly config: AppConfig,
+    private readonly log: LogService,
+  ) {
     this.org = encodeURIComponent(config.avvio.org);
     this.orgPath = `/payments/organizations/${this.org}`;
   }
@@ -116,12 +120,20 @@ export class AvvioClient {
 
     // A call that hangs is an unknown outcome, not a slow success: give up
     // after 35 s and let the caller resolve it with the same key.
-    const res = await fetch(this.config.avvio.base + path, {
-      method,
-      headers,
-      body: opts.body === undefined ? undefined : JSON.stringify(opts.body),
-      signal: AbortSignal.timeout(TIMEOUT_MS),
-    });
+    const started = Date.now();
+    const trace = { method, path, requestId: null as string | null, idempotencyKey: opts.idempotencyKey, req: opts.body };
+    let res: Response;
+    try {
+      res = await fetch(this.config.avvio.base + path, {
+        method,
+        headers,
+        body: opts.body === undefined ? undefined : JSON.stringify(opts.body),
+        signal: AbortSignal.timeout(TIMEOUT_MS),
+      });
+    } catch (e) {
+      this.log.call({ ...trace, status: 0, ms: Date.now() - started, res: { error: e instanceof Error ? e.message : String(e) } });
+      throw e;
+    }
     const text = await res.text();
     let json: unknown = null;
     try {
@@ -130,10 +142,12 @@ export class AvvioClient {
       json = { raw: text.slice(0, 200) };
     }
     const requestId = res.headers.get('x-request-id') ?? (json as { requestId?: string } | null)?.requestId ?? null;
+    const replayed = res.headers.get('idempotency-replayed') === 'true';
+    this.log.call({ ...trace, requestId, status: res.status, ms: Date.now() - started, replayed, res: json });
     if (!res.ok) {
       const retryAfter = Number(res.headers.get('retry-after'));
       throw new AvvioError(res.status, json as never, requestId, Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : null);
     }
-    return { status: res.status, body: json as T, requestId, replayed: res.headers.get('idempotency-replayed') === 'true' };
+    return { status: res.status, body: json as T, requestId, replayed };
   }
 }
