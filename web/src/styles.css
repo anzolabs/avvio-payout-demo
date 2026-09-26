@@ -36,13 +36,16 @@ a { color: var(--ink); }
 .signed-in { display: flex; flex-direction: column; gap: 6px; min-width: 220px; }
 .signed-in select { min-height: 40px; padding: 0 12px; border-radius: 999px; border: 0; box-shadow: 0 0 0 1px var(--line) inset; background: var(--paper); font: 500 14px var(--font); color: var(--ink); }
 
-.stage { display: grid; grid-template-columns: 448px minmax(0, 1fr); gap: clamp(24px, 4vw, 48px); align-items: start; }
+.stage { display: grid; grid-template-columns: calc(448px * var(--s, 1)) minmax(0, 1fr); gap: clamp(24px, 4vw, 48px); align-items: start; }
 .col-app { position: sticky; top: 16px; display: flex; flex-direction: column; gap: 16px; align-items: center; }
+/* the true-size phone (432×904) scaled to fit the window; --s is set from the window height */
+.fit { width: calc(432px * var(--s, 1)); height: calc(904px * var(--s, 1)); }
+.fit > .device { transform: scale(var(--s, 1)); transform-origin: top left; }
 .half-label { display: flex; justify-content: space-between; align-items: baseline; width: 100%; margin-bottom: -4px; }
 
 /* the four-step rail above the phone */
 .rail { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; width: 100%; list-style: none; margin: 0; padding: 0; }
-.rail li { font: 500 11px/1.3 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--tx-mute); padding-top: 8px; border-top: 2px solid var(--line); transition: color .25s var(--ease), border-color .25s var(--ease); }
+.rail li { font: 500 10px/1.3 var(--mono); letter-spacing: .03em; white-space: nowrap; text-transform: uppercase; color: var(--tx-mute); padding-top: 8px; border-top: 2px solid var(--line); transition: color .25s var(--ease), border-color .25s var(--ease); }
 .rail li.done { color: var(--tx-dim); border-color: var(--olive); }
 .rail li.now { color: var(--ink); border-color: var(--ink); }
 
@@ -189,7 +192,7 @@ h2.title { margin: 8px 0 14px; font-weight: 500; font-size: 24px; line-height: 1
 .empty { text-align: center; padding: 40px 12px; }
 
 /* ── the console ──────────────────────────────────────────────────────── */
-.console { min-width: 0; border-radius: var(--r-lg); background: var(--c-bg); color: var(--c-tx); display: flex; flex-direction: column; height: 958px; position: sticky; top: 16px; overflow: hidden; }
+.console { min-width: 0; border-radius: var(--r-lg); background: var(--c-bg); color: var(--c-tx); display: flex; flex-direction: column; height: calc(904px * var(--s, 1) + 54px); position: sticky; top: 16px; overflow: hidden; }
 .console-head { padding: 22px 24px 16px; border-bottom: 1px solid var(--c-line); }
 .console-head .eyebrow { color: var(--c-dim); }
 .console-head h3 { margin: 8px 0 12px; font-weight: 500; font-size: 22px; letter-spacing: -.02em; }
@@ -238,6 +241,8 @@ h2.title { margin: 8px 0 14px; font-weight: 500; font-size: 24px; line-height: 1
   .switcher button.on { background: var(--paper); box-shadow: 0 0 0 1px var(--line); }
   .stage[data-show="app"] .console, .stage[data-show="api"] .col-app { display: none; }
   .col-app { position: static; }
+  .fit { width: 100%; height: auto; }
+  .fit > .device { transform: none; }
   .device { width: 100%; height: auto; padding: 0; border-radius: var(--r-lg); background: none; box-shadow: 0 0 0 1px var(--line); }
   .device .btn-l, .device .btn-r { display: none; }
   .phone { width: 100%; height: auto; min-height: 700px; border-radius: var(--r-lg); }

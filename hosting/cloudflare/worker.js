@@ -16,6 +16,8 @@ export class PayoutDemo extends Container {
 
 export default {
   fetch(request, env) {
-    return getContainer(env.PAYOUT_DEMO, 'shared').fetch(request);
+    // One container per deploy: a running container keeps its image, so a new
+    // deploy gets a fresh one and the previous one sleeps on its own.
+    return getContainer(env.PAYOUT_DEMO, `shared-${env.DEPLOY_ID ?? 'local'}`).fetch(request);
   },
 };
