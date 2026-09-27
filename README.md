@@ -14,7 +14,9 @@ sandbox, with real API calls and test money.
 ## Build it with an AI agent
 
 Connect your coding agent to Avvio over MCP with your sandbox key and
-organization ID (both on the **Developer** page of the dashboard):
+organization ID. To get them, sign in at https://business.avvio.xyz, switch the
+org menu to **Sandbox**, open **Developer**, and create a key with **Transact**
+permission (shown once); the **Organization ID** is in that page's header.
 
 Claude Code:
 
@@ -59,8 +61,8 @@ Try one payout, about a minute end to end:
 1. Tap **Send money**, then add a recipient. The name is filled in; under
    **Sandbox**, pick the account ending `0003`.
 2. Choose an amount. You send USD, they receive MXN, priced live.
-3. Review, send, and watch it go **Sent → Processing → Paid**, then **Returned
-   by the bank**. A payment that is paid and later returned is the case your
+3. Review, send, and watch it go **Sent to Avvio → Processing → Paid**, then
+   **Returned by the bank**. A payment that is paid and later returned is the case your
    own ledger most needs to handle.
 
 The sandbox account you pick decides what happens to every payout sent to it:
@@ -85,7 +87,7 @@ plus your own login and database. Every request carries your key in
 
 ```bash
 export AVVIO_BASE_URL=https://api.avvio.xyz/business/api/v1
-export AVVIO_API_KEY=avvio_test_…      # a sandbox key; see "Get a sandbox key" below
+export AVVIO_API_KEY=avvio_test_…      # a sandbox key; see "Build it with an AI agent" above
 export AVVIO_ORG_ID=…
 ```
 
@@ -230,9 +232,8 @@ Only needed if you want to run this code with your own sandbox key, change it,
 or step through it. Everything above works in the
 [live demo](https://payoutdemo.avvio.xyz).
 
-**Get a sandbox key.** Sign in at https://business.avvio.xyz, switch the org
-menu to **Sandbox**, open **Developer**, and create a key with **Transact**
-permission (shown once). The **Organization ID** is in the same page's header.
+You need a sandbox key and your organization ID; see
+[Build it with an AI agent](#build-it-with-an-ai-agent) for where to get them.
 
 **Run it** (Node 18 or newer):
 
