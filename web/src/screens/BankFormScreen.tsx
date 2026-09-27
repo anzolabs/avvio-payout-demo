@@ -155,12 +155,18 @@ export function BankFormScreen({ payeeId, payee, onSaved, onBack }: Props) {
         {error && <div className="note error">{error}</div>}
         {clabeField && (
           <div className="tray">
-            <span className="eyebrow">Sandbox · pick an outcome · not part of your app</span>
-            {SCENARIOS.map(([acct, what]) => (
-              <button type="button" key={acct} onClick={() => setValues({ ...values, [clabeField.id]: acct })}>
-                <code>····{acct.slice(-4)}</code><span>{what}</span>
-              </button>
-            ))}
+            <span className="eyebrow">Sandbox · not part of your app</span>
+            <p className="tray-hint">Tap a test account to fill it in. Its last digits decide what happens to the payout.</p>
+            {SCENARIOS.map(([acct, what]) => {
+              const on = clabe === acct;
+              return (
+                <button type="button" key={acct} className={on ? 'on' : ''} aria-pressed={on} onClick={() => setValues({ ...values, [clabeField.id]: acct })}>
+                  <code>····{acct.slice(-4)}</code>
+                  <span className="what">{what}</span>
+                  <span className="use" aria-hidden="true">{on ? '✓' : 'Use'}</span>
+                </button>
+              );
+            })}
           </div>
         )}
       </form>

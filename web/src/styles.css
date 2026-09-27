@@ -150,8 +150,15 @@ h2.title { margin: 8px 0 14px; font-weight: 500; font-size: 24px; line-height: 1
 
 .tray { margin-top: 18px; padding: 14px; border-radius: var(--r-sm); border: 1.5px dashed rgba(18, 26, 2, .25); }
 .tray .eyebrow { display: block; margin-bottom: 8px; }
-.tray button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 10px; margin-top: 4px; border: 0; border-radius: var(--r-xs); background: transparent; text-align: left; font-size: 13px; cursor: pointer; }
-.tray button:hover { background: var(--bone); }
+.tray-hint { margin: 0 0 10px; font-size: 12px; color: var(--tx-dim); }
+/* each test account is a tappable card: outlined, lifts on hover, shows a "Use" affordance and a check when picked */
+.tray button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 11px 12px; margin-top: 8px; border: 0; border-radius: 12px; background: var(--paper); box-shadow: 0 0 0 1px var(--line) inset, 0 1px 2px rgba(15, 25, 1, .06); text-align: left; font-size: 13px; cursor: pointer; transition: box-shadow .15s var(--ease), transform .15s var(--ease); }
+.tray button:hover { box-shadow: 0 0 0 1px rgba(18, 26, 2, .35) inset, 0 2px 6px rgba(15, 25, 1, .08); }
+.tray button:active { transform: scale(.99); }
+.tray button.on { box-shadow: 0 0 0 2px var(--ink) inset; }
+.tray button .what { flex: 1; }
+.tray button .use { flex: none; padding: 3px 10px; border-radius: 999px; background: var(--bone); font-weight: 700; font-size: 12px; }
+.tray button.on .use { background: var(--ink); color: var(--cream); }
 .tray code { font: 600 12px var(--mono); }
 
 .pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; white-space: nowrap; }
@@ -299,7 +306,10 @@ h2.title { margin: 8px 0 14px; font-weight: 500; font-size: 24px; line-height: 1
 .phone .steps strong { font: 600 17px var(--ios); }
 .phone .tray { border-color: rgba(60, 60, 67, .3); background: transparent; }
 .phone .tray .eyebrow { text-transform: uppercase; font-size: 12px; }
-.phone .tray button { font: 400 15px var(--ios); }
+.phone .tray button { font: 400 15px var(--ios); background: var(--ios-card); }
+.phone .tray button .use { font: 600 13px var(--ios); color: var(--ios-tint); background: #E5E5EA; }
+.phone .tray button.on .use { color: #fff; background: var(--ios-tint); }
+.phone .tray-hint { font-size: 13px; color: var(--ios-2); margin-left: 2px; }
 .phone .link { font: 400 15px var(--ios); color: var(--ios-tint); text-decoration: none; }
 /* the iOS tab bar: icons over labels, translucent, above the home indicator */
 .phone .tabs { gap: 0; padding: 7px 24px 30px; background: rgba(249, 249, 249, .94); border-top: .5px solid rgba(0, 0, 0, .2); backdrop-filter: blur(20px); }
