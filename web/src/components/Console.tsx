@@ -20,7 +20,10 @@ interface Entry { key: string; line: LogLine; kind: Kind; background: boolean }
 function classify(line: LogLine, i: number): Entry {
   const key = `${line.at}-${i}`;
   if (line.call) return { key, line, kind: 'call', background: BACKGROUND_PATHS.test(line.call.path) };
-  if ((line.source === 'feed' || line.source === 'webhook') && /^payout/.test(line.message)) {
+  // An event row is one applied to a payout this app made (`… → wd_…`). Events
+  // for payouts made elsewhere in the same organization ("not ours") are
+  // background: in the hosted demo they would otherwise reach every visitor.
+  if ((line.source === 'feed' || line.source === 'webhook') && /^payout\S* seq .* → /.test(line.message)) {
     return { key, line, kind: 'event', background: / no change$/.test(line.message) };
   }
   // The backend's own narration; the calls above already say what happened.
