@@ -59,9 +59,15 @@ export const SANDBOX_ACCOUNTS: Record<string, SandboxAccount[]> = Object.fromEnt
   Object.entries(DETAILS).map(([ccy, bySuffix]) => [ccy, OUTCOMES.map(([suffix, outcome]) => ({ suffix, outcome, details: bySuffix[suffix] }))]),
 );
 
-/** Whether these details are exactly one of the test accounts for this currency. */
+/**
+ * Whether these details are exactly one of the test accounts for this
+ * currency: the same fields, no more, so nothing real can ride along in an
+ * extra field. Spaces and letter case are forgiven.
+ */
 export function isSandboxAccount(currency: string, details: Record<string, string>): boolean {
+  const keys = Object.keys(details).sort().join();
   return (SANDBOX_ACCOUNTS[currency] ?? []).some((a) =>
+    Object.keys(a.details).sort().join() === keys &&
     Object.entries(a.details).every(([k, v]) => (details[k] ?? '').replace(/\s/g, '').toUpperCase() === v.toUpperCase()),
   );
 }

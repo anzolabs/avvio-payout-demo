@@ -88,7 +88,7 @@ export function BankFormScreen({ payeeId, payee, currencies, sandboxAccounts, on
     }).catch((e: Error) => live && setError(e.message));
     if (!holderEdited) setHolder(CURRENCY_INFO[currency]?.sampleName ?? '');
     return () => { live = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Only a currency change reloads the form; the name and test accounts are read as they are then.
   }, [currency]);
 
   const picker = currencies.length > 1 && (
@@ -96,7 +96,7 @@ export function BankFormScreen({ payeeId, payee, currencies, sandboxAccounts, on
       <span className="eyebrow">Where they bank</span>
       <div className="currencies" role="radiogroup" aria-label="Destination currency">
         {currencies.map((c) => (
-          <button type="button" key={c} role="radio" aria-checked={c === currency} className={c === currency ? 'on' : ''} onClick={() => setCurrency(c)}>
+          <button type="button" key={c} role="radio" aria-checked={c === currency} className={c === currency ? 'on' : ''} disabled={busy} onClick={() => setCurrency(c)}>
             <span className="flag" aria-hidden="true">{CURRENCY_INFO[c]?.flag ?? '🏦'}</span>{c}
           </button>
         ))}

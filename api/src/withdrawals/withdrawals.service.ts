@@ -178,7 +178,8 @@ export class WithdrawalsService {
       } else {
         // A 4xx: the API refused it and nothing was sent. Final for this withdrawal.
         const err = e as AvvioError;
-        wd.error = { type: err.type, message: err.message, requestId: err.requestId, errors: err.errors };
+        // The API's own sentence (its `message`/`detail`), not AvvioError's "TYPE: …" form: the app shows it.
+        wd.error = { type: err.type, message: err.body?.message ?? err.body?.detail ?? err.message, requestId: err.requestId, errors: err.errors };
         transition(wd, 'error', 'api', `${err.status} ${err.type}`);
         this.log.log('api', `POST /payouts for ${wd.id} refused: ${err.status} ${err.type}`, { requestId: err.requestId, body: err.body });
       }

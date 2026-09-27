@@ -34,6 +34,6 @@ test('the public demo accepts only the listed test accounts', () => {
   assert.ok(isSandboxAccount('EUR', { iban: 'de13 3704 0044 0532 0100 03' }), 'spaces and case are forgiven');
   assert.ok(!isSandboxAccount('MXN', { clabeNumber: '002010077777777771' }), 'a real-looking CLABE');
   assert.ok(!isSandboxAccount('INR', { accountNumber: '50100000000003', ifscCode: 'SBIN0000001' }), 'a real IFSC with a test number');
-  assert.ok(isSandboxAccount('GBP', { accountNumber: '12340003', sortCode: '000000' }), 'extra fields do not matter');
+  assert.ok(!isSandboxAccount('GBP', { accountNumber: '12340003', sortCode: '400515' }), 'an extra field could carry real details');
   assert.ok(!isSandboxAccount('XXX', { accountNumber: '12340003' }), 'unknown currency');
 });

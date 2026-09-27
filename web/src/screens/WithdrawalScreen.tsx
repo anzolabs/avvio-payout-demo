@@ -63,7 +63,7 @@ function Detail({ wd }: { wd: Withdrawal }) {
     case 'error':
       // A known refusal in the sender's words; otherwise the API's own reason
       // (e.g. "Below the EUR minimum of 23.55 USD"), which is written for people.
-      return <div className="note error">{REFUSAL[wd.error?.type ?? ''] ?? (wd.error?.message ? `${wd.error.message.replace(/\.?$/, '.')} Nothing was sent.` : 'This payment could not be sent. Nothing was taken.')}</div>;
+      return <div className="note error">{REFUSAL[wd.error?.type ?? ''] ?? (wd.error?.message ? (/nothing was sent/i.test(wd.error.message) ? wd.error.message : `${wd.error.message.replace(/\.?$/, '.')} Nothing was sent.`) : 'This payment could not be sent. Nothing was taken.')}</div>;
     default:
       return null;
   }
