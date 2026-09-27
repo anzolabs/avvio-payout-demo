@@ -22,4 +22,9 @@ export class AddAccountDto {
   @MaxLength(60)
   @Matches(/^[\p{L}][\p{L} .'-]*$/u, { message: 'holderName must be a name' })
   holderName?: string;
+
+  /** Destination currency for this account; one the app offers. Defaults to the first. */
+  @IsOptional()
+  @Matches(/^[A-Z]{3}$/, { message: 'currency must be a 3-letter code' })
+  currency?: string;
 }

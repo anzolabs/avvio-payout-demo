@@ -27,16 +27,16 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 
 export const api = {
   state: () => request<ServerState>('GET', '/api/state'),
-  corridor: () => request<Corridor>('GET', '/api/corridor'),
-  quote: (amount: string) => request<Quote>('GET', `/api/quote?amount=${encodeURIComponent(amount)}`),
+  corridor: (currency: string) => request<Corridor>('GET', `/api/corridor?currency=${encodeURIComponent(currency)}`),
+  quote: (amount: string, currency: string) => request<Quote>('GET', `/api/quote?amount=${encodeURIComponent(amount)}&currency=${encodeURIComponent(currency)}`),
   accounts: (payeeId: string) => request<{ accounts: Account[] }>('GET', `/api/payees/${payeeId}/accounts`),
-  addAccount: (payeeId: string, details: Record<string, string>, requestId: string, holderName?: string) =>
-    request<{ account: Account }>('POST', `/api/payees/${payeeId}/accounts`, { details, requestId, ...(holderName ? { holderName } : {}) }),
+  addAccount: (payeeId: string, details: Record<string, string>, requestId: string, holderName: string | undefined, currency: string) =>
+    request<{ account: Account }>('POST', `/api/payees/${payeeId}/accounts`, { details, requestId, currency, ...(holderName ? { holderName } : {}) }),
   removeAccount: (payeeId: string, methodId: string) =>
     request<{ accounts: Account[] }>('DELETE', `/api/payees/${payeeId}/accounts/${methodId}`),
   withdrawals: () => request<Withdrawal[]>('GET', '/api/withdrawals'),
   withdrawal: (id: string) => request<Withdrawal>('GET', `/api/withdrawals/${id}`),
-  withdraw: (body: { payeeId: string; amount: string; destinationAccountId: string; requestId: string; expectDestination?: string }) =>
+  withdraw: (body: { payeeId: string; amount: string; destinationAccountId: string; requestId: string; expectDestination?: string; purposeOfPayment?: string }) =>
     request<Withdrawal>('POST', '/api/withdrawals', body),
   log: (after: string) => request<LogLine[]>('GET', `/api/log?after=${encodeURIComponent(after)}`),
   balance: () => request<{ amount: string; currency: string }>('GET', '/api/balance'),

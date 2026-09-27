@@ -11,6 +11,7 @@ export function testConfig(): AppConfig {
     port: 0,
     host: '127.0.0.1',
     currency: 'MXN',
+    currencies: ['MXN'],
     webhookSecret: '',
     dataFile: join(mkdtempSync(join(tmpdir(), 'avvio-demo-')), 'state.json'),
     webDist: '',

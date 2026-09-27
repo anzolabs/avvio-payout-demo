@@ -101,6 +101,8 @@ export interface CreatePayoutBody {
   reference?: string;
   expectDestination?: string;
   maxDriftBps?: number;
+  /** Why the money is sent. Required in some corridors (INR, BRL, …; see policy.purposeOfPayment). */
+  purposeOfPayment?: string;
   endUser?: { id: string; name?: string; email?: string };
 }
 

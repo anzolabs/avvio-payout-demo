@@ -7,8 +7,10 @@ export interface AppConfig {
   /** The hosted demo: one shared sandbox key, visitors kept apart by a cookie. See visitor.ts. */
   readonly publicDemo: boolean;
   readonly host: string;
-  /** Destination currency for every payout. MXN is the sandbox corridor. */
+  /** The default destination currency: the first of `currencies`. */
   readonly currency: string;
+  /** Currencies the app offers, in order. Each needs a corridor on the organization. */
+  readonly currencies: string[];
   /** The whsec_ secret of the registered webhook endpoint; empty = polling and feed only. */
   readonly webhookSecret: string;
   readonly dataFile: string;
@@ -56,7 +58,8 @@ export function loadConfig(): AppConfig {
     publicDemo: process.env.DEMO_PUBLIC === '1',
     /** Loopback only by default. Expose the webhook path through a tunnel, not the app. */
     host: process.env.HOST ?? '127.0.0.1',
-    currency: (process.env.DESTINATION_CURRENCY ?? 'MXN').toUpperCase(),
+    currency: currencies()[0],
+    currencies: currencies(),
     webhookSecret: process.env.AVVIO_WEBHOOK_SECRET ?? '',
     dataFile: process.env.DATA_FILE ?? join(ROOT, 'api', 'data', 'state.json'),
     webDist: join(ROOT, 'web', 'dist'),
@@ -68,4 +71,11 @@ export function loadConfig(): AppConfig {
       mode: key.startsWith('avvio_live_') ? 'live' : key.startsWith('avvio_test_') ? 'test' : null,
     },
   };
+}
+
+/** DESTINATION_CURRENCIES (comma-separated) wins; a single DESTINATION_CURRENCY still works. */
+function currencies(): string[] {
+  const raw = process.env.DESTINATION_CURRENCIES ?? process.env.DESTINATION_CURRENCY ?? 'MXN,INR,PHP,EUR,GBP';
+  const list = raw.split(',').map((c) => c.trim().toUpperCase()).filter((c) => /^[A-Z]{3}$/.test(c));
+  return list.length ? [...new Set(list)] : ['MXN'];
 }

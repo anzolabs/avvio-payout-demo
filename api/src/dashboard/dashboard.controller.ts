@@ -1,6 +1,7 @@
 import { BadRequestException, Controller, ForbiddenException, Get, HttpException, Inject, Post, Query, Req } from '@nestjs/common';
 import type { Request } from 'express';
 import { visitorOf } from '../visitor';
+import { SANDBOX_ACCOUNTS } from '../sandbox-accounts';
 import { randomUUID } from 'node:crypto';
 import { AvvioClient } from '../avvio/avvio.client';
 import { AvvioError } from '../avvio/avvio.error';
@@ -34,6 +35,9 @@ export class DashboardController {
       orgId: this.config.avvio.org,
       baseUrl: this.config.avvio.base,
       currency: this.config.currency,
+      currencies: this.config.currencies,
+      // Test accounts per currency, for the app's tray. Sandbox only.
+      sandboxAccounts: this.config.avvio.mode === 'test' ? Object.fromEntries(this.config.currencies.map((c) => [c, SANDBOX_ACCOUNTS[c] ?? []])) : {},
       webhookConfigured: Boolean(this.config.webhookSecret),
       policy: p && {
         mode: p.mode,
@@ -50,15 +54,24 @@ export class DashboardController {
 
   /** The bank form: fields come from the corridor, never from the app. */
   @Get('corridor')
-  corridorDefinition() {
-    return this.passthrough(() => this.corridor.current());
+  corridorDefinition(@Query('currency') currency?: string) {
+    return this.passthrough(() => this.corridor.current(this.currency(currency)));
   }
 
   /** An estimate for the confirm screen. The binding price is on the payout. */
   @Get('quote')
-  quote(@Query('amount') amount: string) {
+  quote(@Query('amount') amount: string, @Query('currency') currency?: string) {
     if (!/^\d{1,6}(\.\d{1,2})?$/.test(amount ?? '')) throw new BadRequestException('amount must be a USD decimal string');
-    return this.passthrough(() => this.avvio.rates(amount, this.config.currency));
+    const to = this.currency(currency);
+    return this.passthrough(() => this.avvio.rates(amount, to));
+  }
+
+  /** One of the currencies this app offers; the default when none is named. */
+  private currency(currency?: string): string {
+    if (!currency) return this.config.currency;
+    const c = currency.toUpperCase();
+    if (!this.config.currencies.includes(c)) throw new BadRequestException(`currency must be one of ${this.config.currencies.join(', ')}`);
+    return c;
   }
 
   @Get('log')

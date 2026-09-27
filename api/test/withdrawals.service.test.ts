@@ -171,3 +171,10 @@ test('a first backfill is quiet about events that are not ours, but still applie
   events.apply({ id: 'e2', sequence: '2', type: 'payout.returned', payoutId: 'sbx_pay_1', status: 'failed', data: null }, 'feed', true);
   assert.equal(repo.state.withdrawals.wd_1.status, 'returned');
 });
+
+test('every payout names its purpose: required in corridors like INR, accepted in all', async () => {
+  const { svc, repo, bodies } = setup([() => ok('sbx_pay_1')]);
+  repo.state.accounts['payee_4471'][0].holder = 'Priya Sharma';
+  await svc.create('', 'payee_4471', '10.00', 'acct_0003', REQ);
+  assert.equal(bodies[0].purposeOfPayment, 'FAMILY_SUPPORT', 'money to a family member');
+});

@@ -12,7 +12,7 @@ const TTL_MS = 60 * 60 * 1000;
  */
 @Injectable()
 export class CorridorService {
-  private cache: { at: number; corridor: Corridor } | null = null;
+  private readonly cache = new Map<string, { at: number; corridor: Corridor }>();
 
   constructor(
     @Inject(APP_CONFIG) private readonly config: AppConfig,
@@ -20,12 +20,13 @@ export class CorridorService {
     private readonly log: LogService,
   ) {}
 
-  async current(): Promise<Corridor> {
-    if (this.cache && Date.now() - this.cache.at < TTL_MS) return this.cache.corridor;
-    const res = await this.avvio.corridors(this.config.currency);
-    const corridor = res.corridors.find((c) => c.currency === this.config.currency);
-    if (!corridor) throw new BadGatewayException(`no ${this.config.currency} corridor for this organization`);
-    this.cache = { at: Date.now(), corridor };
+  async current(currency = this.config.currency): Promise<Corridor> {
+    const hit = this.cache.get(currency);
+    if (hit && Date.now() - hit.at < TTL_MS) return hit.corridor;
+    const res = await this.avvio.corridors(currency);
+    const corridor = res.corridors.find((c) => c.currency === currency);
+    if (!corridor) throw new BadGatewayException(`no ${currency} corridor for this organization`);
+    this.cache.set(currency, { at: Date.now(), corridor });
     this.log.log('api', `GET /corridors → ${corridor.currency}: ${corridor.fields.map((f) => f.id).join(', ')}`);
     return corridor;
   }

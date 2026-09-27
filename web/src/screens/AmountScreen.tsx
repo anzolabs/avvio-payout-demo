@@ -23,9 +23,9 @@ export function AmountScreen({ payee, account, initialAmount, onReview, onBack }
   useEffect(() => {
     if (!valid) { setQuote(null); return undefined; }
     let live = true;
-    const t = setTimeout(() => { api.quote(Number(value).toFixed(2)).then((q) => live && setQuote(q)).catch(() => live && setQuote(null)); }, 300);
+    const t = setTimeout(() => { api.quote(Number(value).toFixed(2), account.currency).then((q) => live && setQuote(q)).catch(() => live && setQuote(null)); }, 300);
     return () => { live = false; clearTimeout(t); };
-  }, [value, valid]);
+  }, [value, valid, account.currency]);
 
   return (
     <Screen footer={<><button className="cta" disabled={!valid || !quote} onClick={() => onReview(Number(value).toFixed(2))}>Review</button><BackLink onClick={onBack} /></>}>
@@ -37,11 +37,11 @@ export function AmountScreen({ payee, account, initialAmount, onReview, onBack }
         </label>
         <div className="fx-mid">
           <span>{quote ? `Fee ${money(quote.fee.amount)}` : ' '}</span>
-          <span>{quote ? `1 USD = ${Number(quote.rate).toFixed(4)} MXN` : valid ? 'Getting the rate…' : ' '}</span>
+          <span>{quote ? `1 USD = ${Number(quote.rate).toFixed(4)} ${account.currency}` : valid ? 'Getting the rate…' : ' '}</span>
         </div>
         <div className="fx-row">
           <span className="eyebrow">{to === 'your account' ? 'You receive' : `${to} receives`}</span>
-          <span className="fx-amount"><span className="num out">{quote ? fmt(quote.destinationAmount.amount) : '—'}</span><span className="code">MXN</span></span>
+          <span className="fx-amount"><span className="num out">{quote ? fmt(quote.destinationAmount.amount) : '—'}</span><span className="code">{account.currency}</span></span>
         </div>
       </div>
       <div className="chips">

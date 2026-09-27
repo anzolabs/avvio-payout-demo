@@ -1,4 +1,5 @@
 import { hhmmss, money } from '../api/client';
+import { purposeLabel } from '../api/currencies';
 import { isSettled, Withdrawal, WithdrawalStatus } from '../api/types';
 import { Screen } from '../components/Screen';
 import { StatusPill } from '../components/StatusPill';
@@ -60,7 +61,9 @@ function Detail({ wd }: { wd: Withdrawal }) {
     case 'failed':
       return <div className="note">{wd.fundsReturned ? 'The money is back in your balance.' : 'The money has not come back yet; this updates when it does.'}</div>;
     case 'error':
-      return <div className="note error">{REFUSAL[wd.error?.type ?? ''] ?? 'This payment could not be sent. Nothing was taken.'}</div>;
+      // A known refusal in the sender's words; otherwise the API's own reason
+      // (e.g. "Below the EUR minimum of 23.55 USD"), which is written for people.
+      return <div className="note error">{REFUSAL[wd.error?.type ?? ''] ?? (wd.error?.message ? `${wd.error.message.replace(/\.?$/, '.')} Nothing was sent.` : 'This payment could not be sent. Nothing was taken.')}</div>;
     default:
       return null;
   }
@@ -94,7 +97,7 @@ export function WithdrawalScreen({ wd, onBack }: { wd: Withdrawal; onBack: () =>
         ))}
       </ol>
       <Detail wd={wd} />
-      {wd.fee && wd.status === 'completed' && <p className="muted">Fee {money(wd.fee)}</p>}
+      <p className="muted">{wd.purposeOfPayment ? `Reason: ${purposeLabel(wd.purposeOfPayment)}` : ''}{wd.fee && wd.status === 'completed' ? `${wd.purposeOfPayment ? ' · ' : ''}Fee ${money(wd.fee)}` : ''}</p>
     </Screen>
   );
 }

@@ -1,4 +1,7 @@
-import { IsOptional, IsString, IsUUID, Matches } from 'class-validator';
+import { IsIn, IsOptional, IsString, IsUUID, Matches } from 'class-validator';
+
+// ponytail: the API's list, copied; the API refuses anything else anyway.
+export const PURPOSES = ['FAMILY_SUPPORT', 'GIFT', 'SELF', 'EDUCATION', 'HEALTH_OR_MEDICAL', 'UTILITY_BILL', 'LOAN_PAYMENT', 'GOODS_OR_SERVICES', 'SALARY_PAYMENT', 'REAL_ESTATE_PURCHASE', 'TAX_PAYMENT', 'DONATION', 'TRAVEL', 'OTHER'];
 
 export class CreateWithdrawalDto {
   @IsString()
@@ -22,4 +25,9 @@ export class CreateWithdrawalDto {
   // amount is not always rounded to two).
   @Matches(/^\d{1,15}(\.\d{1,6})?$/, { message: 'expectDestination must be a decimal string' })
   expectDestination?: string;
+
+  /** Why the money is sent. Required in some corridors (INR, BRL, …); defaults by recipient. */
+  @IsOptional()
+  @IsIn(PURPOSES)
+  purposeOfPayment?: string;
 }

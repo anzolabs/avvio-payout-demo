@@ -13,8 +13,6 @@ import type { NextFunction, Request, Response } from 'express';
 export const VID = /(?<![A-Za-z0-9])v[0-9a-f]{10}(?![A-Za-z0-9])/;
 const COOKIE = 'avvio_demo_vid';
 
-/** The sandbox test accounts. The public demo accepts nothing else, so no one can type real bank details into it. */
-export const TEST_CLABES = ['012180000000070003', '012180000000000002', '012180000000030001', '012180000000045669'];
 
 type WithVisitor = Request & { vid?: string };
 

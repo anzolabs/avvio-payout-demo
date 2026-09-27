@@ -26,7 +26,7 @@ export class WithdrawalsController {
   @Post()
   @HttpCode(201)
   async create(@Req() req: Request, @Body() dto: CreateWithdrawalDto, @Res({ passthrough: true }) res: Response) {
-    const wd = await this.withdrawals.create(visitorOf(req), dto.payeeId, dto.amount, dto.destinationAccountId, dto.requestId, dto.expectDestination);
+    const wd = await this.withdrawals.create(visitorOf(req), dto.payeeId, dto.amount, dto.destinationAccountId, dto.requestId, dto.expectDestination, dto.purposeOfPayment);
     if (wd.status === 'error') res.status(502);
     else if (wd.status === 'unknown') res.status(202);
     return toView(wd);

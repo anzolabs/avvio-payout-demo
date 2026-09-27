@@ -80,13 +80,13 @@ export default function App() {
       case 'recipients':
         return <RecipientsScreen accounts={accounts} onPick={pick} onAdd={() => go('bank')} onRemove={async (id) => setAccounts((await api.removeAccount(payeeId, id)).accounts)} onBack={home} />;
       case 'bank':
-        return <BankFormScreen payeeId={payeeId} payee={payee} onSaved={async (acc) => { await loadAccounts(payeeId); setSelected(acc.destinationAccountId); go('amount'); }} onBack={() => (accounts.length ? go('recipients') : home())} />;
+        return <BankFormScreen payeeId={payeeId} payee={payee} currencies={server.currencies} sandboxAccounts={server.sandboxAccounts} onSaved={async (acc) => { await loadAccounts(payeeId); setSelected(acc.destinationAccountId); go('amount'); }} onBack={() => (accounts.length ? go('recipients') : home())} />;
       case 'amount':
         if (!account) return null;
         return <AmountScreen payee={payee} account={account} initialAmount={amount} onReview={(a) => { setAmount(a); go('confirm'); }} onBack={() => go('recipients')} />;
       case 'confirm':
         if (!account) return null;
-        return <ConfirmScreen amount={amount} account={account} payee={payee} onSend={async (requestId, expectDestination) => { setCurrent(await api.withdraw({ payeeId, amount, destinationAccountId: account.destinationAccountId, requestId, expectDestination })); go('withdrawal'); }} onBack={() => go('amount')} />;
+        return <ConfirmScreen amount={amount} account={account} payee={payee} onSend={async (requestId, expectDestination, purposeOfPayment) => { setCurrent(await api.withdraw({ payeeId, amount, destinationAccountId: account.destinationAccountId, requestId, expectDestination, purposeOfPayment })); go('withdrawal'); }} onBack={() => go('amount')} />;
       case 'withdrawal':
         if (!current) return null;
         return <WithdrawalScreen wd={current} onBack={home} />;

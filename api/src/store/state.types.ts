@@ -55,6 +55,8 @@ export interface Withdrawal {
   requestId: string;
   /** What the payee was shown on the confirm screen; sent as expectDestination. */
   expectDestination?: string;
+  /** Why the money is sent, as the API's code (FAMILY_SUPPORT, GIFT, …). */
+  purposeOfPayment?: string;
   /** Resend attempts while `unknown`, and when the next one is due. */
   attempts?: number;
   nextAttemptAt?: string;

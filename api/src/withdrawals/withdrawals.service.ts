@@ -65,7 +65,7 @@ export class WithdrawalsService {
    * tap, or the app retrying a request that timed out, returns the withdrawal
    * already created for it instead of paying twice.
    */
-  async create(vid: string, payeeId: string, amount: string, destinationAccountId: string, requestId: string, expectDestination?: string): Promise<Withdrawal> {
+  async create(vid: string, payeeId: string, amount: string, destinationAccountId: string, requestId: string, expectDestination?: string, purposeOfPayment?: string): Promise<Withdrawal> {
     if (!this.config.avvio.configured) throw new ServiceUnavailableException('backend is not configured: set AVVIO_API_KEY and AVVIO_ORG_ID in .env');
     const existing = Object.values(this.repo.state.withdrawals).find((w) => w.requestId === requestId);
     if (existing) {
@@ -101,6 +101,8 @@ export class WithdrawalsService {
       reference: `DEMO-${hex}`,
       idempotencyKey: randomUUID(),
       expectDestination,
+      // What the sender chose; otherwise money to a family member, or their own account.
+      purposeOfPayment: purposeOfPayment ?? (account.holder ? 'FAMILY_SUPPORT' : 'SELF'),
       status: 'creating',
       attempts: 0,
       timeline: [{ at: now, source: 'app', status: 'creating', note: `${payee.name} asked for $${amount} into ····${account.last4}` }],
@@ -144,6 +146,10 @@ export class WithdrawalsService {
       // further than maxDriftBps (default 200), Avvio refuses with
       // RATE_DRIFT_EXCEEDED instead of sending short.
       ...(wd.expectDestination ? { expectDestination: wd.expectDestination } : {}),
+      // Some corridors refuse a payout without a purpose (INR, BRL, CNY, GHS:
+      // policy.purposeOfPayment.requiredForCurrencies), and every corridor
+      // accepts one, so it is always sent.
+      purposeOfPayment: wd.purposeOfPayment ?? (wd.holder ? 'FAMILY_SUPPORT' : 'SELF'),
       // No `endUser`: the business is the sender of record. When you pay on
       // behalf of your own customer (an employer, a merchant), send
       // endUser: { id: <that customer's id> } for attribution and per-customer

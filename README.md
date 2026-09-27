@@ -51,7 +51,8 @@ codebase from this repo. `avvio-docs` searches the documentation.
 The page is split in two:
 
 - **Your app, on a phone.** "Payday" stands in for your product: someone with
-  funds available sends money to family in Mexico.
+  funds available sends money to family in Mexico, India, the Philippines,
+  Europe or the UK. Each country's bank form comes from the API.
 - **Your backend, beside it.** Every request it makes to Avvio, as it happens:
   method, path, status and latency. Click one to see the request and response
   bodies, the `Idempotency-Key` and the `x-request-id`.
@@ -166,6 +167,10 @@ curl -s -X POST "$AVVIO_BASE_URL/payments/organizations/$AVVIO_ORG_ID/payouts" \
 - Optional: `expectDestination` is the amount you showed the user. If the rate
   has moved more than 2% since then, the payout is refused instead of sending
   less.
+- `purposeOfPayment` says why the money is sent (`FAMILY_SUPPORT`, `GIFT`,
+  …). Some corridors require it (INR and BRL among them; your policy lists
+  them under `purposeOfPayment.requiredForCurrencies`), and every corridor
+  accepts it, so the demo always sends one.
 - Paying on behalf of your own customer (an employer, a merchant)? Add
   `"endUser": { "id": "<your customer's id>" }`. It's never the recipient.
 - `200` means it was sent: save `payoutId`. `202` means it's waiting for
@@ -264,7 +269,7 @@ trailing comments.
 | `AVVIO_ORG_ID` | **Yes** | none | Your organization ID from the Developer page. |
 | `AVVIO_BASE_URL` | No | `https://api.avvio.xyz/business/api/v1` | One URL for sandbox and live. |
 | `AVVIO_WEBHOOK_SECRET` | No | empty | Your webhook endpoint's `whsec_…` secret. Empty means polling and the events feed only. |
-| `DESTINATION_CURRENCY` | No | `MXN` | The currency recipients receive. |
+| `DESTINATION_CURRENCIES` | No | `MXN,INR,PHP,EUR,GBP` | The currencies the app offers, in order; each needs a corridor on your organization. |
 | `PORT` | No | `4300` | The port it listens on. |
 | `HOST` | No | `127.0.0.1` | Keep it on loopback: the demo's own routes have no login. |
 | `DATA_FILE` | No | `api/data/state.json` | Where it keeps its state. Delete it to start over. |

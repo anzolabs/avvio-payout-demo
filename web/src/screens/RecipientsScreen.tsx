@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { firstName, initials } from '../api/client';
+import { flagOf } from '../api/currencies';
 import { Account } from '../api/types';
 import { BackLink, Screen } from '../components/Screen';
 
@@ -20,7 +21,7 @@ export function RecipientsScreen({ accounts, onPick, onAdd, onRemove, onBack }: 
       {accounts.map((a) => (
         <div key={a.id} className="account" role="button" tabIndex={0} onClick={() => onPick(a)} onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onPick(a)}>
           <span className="face">{initials(a.holder ?? 'Me')}</span>
-          <span className="who"><strong>{a.holder ?? 'My account'}</strong><span className="muted">{a.bank ?? 'Bank'} ····{a.last4}</span></span>
+          <span className="who"><strong>{a.holder ?? 'My account'}</strong><span className="muted">{flagOf(a.currency)} {a.currency} · {a.bank ?? 'Bank account'} ····{a.last4}</span></span>
           <button
             type="button"
             className="link"

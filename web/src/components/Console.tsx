@@ -4,11 +4,12 @@ import { ApiCall, LogLine, ServerState } from '../api/types';
 import { useBackendLog } from '../hooks/useBackendLog';
 
 /** Sandbox accounts: the last four digits pick what every payout to them does. */
+// Outcome by the last four digits of the recipient's account, in any currency.
 export const SCENARIOS: [string, string][] = [
-  ['012180000000070003', 'completes, then the bank returns it'],
-  ['012180000000000002', 'slow: shows processing, completes at 60 s'],
-  ['012180000000030001', 'fails, account invalid'],
-  ['012180000000045669', 'completes normally'],
+  ['…0003', 'completes, then the bank returns it'],
+  ['…0002', 'slow: shows processing, completes at 60 s'],
+  ['…0001', 'fails, account invalid'],
+  ['any other', 'completes normally'],
 ];
 
 // Housekeeping the backend does on its own; shown only when asked for.
@@ -164,7 +165,7 @@ export function Console({ server }: { server: ServerState }) {
           <span className="cpill">{server.orgId ? `org ${server.orgId.slice(0, 8)}…` : 'no org id'}</span>
           {server.webhookConfigured ? <span className="cpill ok">webhook secret set</span> : <span className="cpill warn">no webhook secret: polling + feed only</span>}
           {p && (p.thresholdUsd == null ? <span className="cpill ok">no approval threshold</span> : <span className="cpill warn">approvals above {money(p.thresholdUsd)}</span>)}
-          <span className="cpill">pays {server.currency}</span>
+          <span className="cpill">pays {server.currencies.join(' · ')}</span>
         </div>
         {server.publicDemo && (
           <p className="ctext">
@@ -173,7 +174,7 @@ export function Console({ server }: { server: ServerState }) {
           </p>
         )}
         <div className="ctext">
-          <b>Sandbox outcomes.</b> The last four digits of the account a recipient registers pick what every payout to it does:
+          <b>Sandbox outcomes.</b> In any currency, the last four digits of the account a recipient registers pick what every payout to it does:
           <table className="outcomes"><tbody>
             {SCENARIOS.map(([acct, what]) => <tr key={acct}><td><code>{acct}</code></td><td>{what}</td></tr>)}
           </tbody></table>
