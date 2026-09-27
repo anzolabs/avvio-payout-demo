@@ -2,6 +2,8 @@ import { FormEvent, useEffect, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import { Account, Corridor, CorridorField, Payee } from '../api/types';
 import { SCENARIOS } from '../components/Console';
+
+const DEFAULT_TEST_CLABE = '012180000000045669';
 import { BackLink, Screen } from '../components/Screen';
 
 // The banks behind most CLABEs (the backend keeps the same list); the rest just show no name.
@@ -64,7 +66,13 @@ export function BankFormScreen({ payeeId, payee, onSaved, onBack }: Props) {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    api.corridor().then(setCorridor).catch((e: Error) => setError(e.message));
+    api.corridor().then((c) => {
+      setCorridor(c);
+      // Start on the everyday outcome (…5669, completes normally); the other
+      // sandbox accounts are one tap away in the tray.
+      const f = c.fields.find((x) => x.checksum === 'clabe');
+      if (f) setValues((v) => (v[f.id] ? v : { ...v, [f.id]: DEFAULT_TEST_CLABE }));
+    }).catch((e: Error) => setError(e.message));
   }, []);
 
   if (!corridor) return <Screen>{error ? <div className="note error">{error}</div> : <p className="muted">Loading the form…</p>}</Screen>;

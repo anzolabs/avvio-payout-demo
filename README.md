@@ -58,12 +58,13 @@ The page is split in two:
 
 Try one payout, about a minute end to end:
 
-1. Tap **Send money**, then add a recipient. The name is filled in; under
-   **Sandbox**, pick the account ending `0003`.
+1. Tap **Send money**, then add a recipient. The name and a test account that
+   completes normally are filled in, so you can just continue. To see a bank
+   return, tap the account ending `0003` under **Sandbox** first.
 2. Choose an amount. You send USD, they receive MXN, priced live.
-3. Review, send, and watch it go **Sent to Avvio → Processing → Paid**, then
-   **Returned by the bank**. A payment that is paid and later returned is the case your
-   own ledger most needs to handle.
+3. Review, send, and watch it go **Sent to Avvio → Processing → Paid**. With
+   `0003` it then comes back as **Returned by the bank**: a payment that is paid
+   and later returned is the case your own ledger most needs to handle.
 
 The sandbox account you pick decides what happens to every payout sent to it:
 
