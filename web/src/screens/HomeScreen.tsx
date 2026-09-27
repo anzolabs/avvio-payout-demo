@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api, firstName, initials, money } from '../api/client';
+import { flagOf } from '../api/currencies';
 import { Account, Payee, ServerState, Withdrawal } from '../api/types';
 import { Screen } from '../components/Screen';
 import { StatusPill } from '../components/StatusPill';
@@ -34,7 +35,7 @@ export function HomeScreen({ payee, server, accounts, onSend, onPick, onNew, onO
       <div className="people">
         {accounts.map((a) => (
           <button key={a.id} className="person" onClick={() => onPick(a)}>
-            <span className="face">{initials(a.holder ?? payee.name)}</span>
+            <span className="face">{initials(a.holder ?? payee.name)}<span className="face-flag" aria-label={a.currency}>{flagOf(a.currency)}</span></span>
             <span>{firstName(a.holder ?? 'Me')}</span>
           </button>
         ))}

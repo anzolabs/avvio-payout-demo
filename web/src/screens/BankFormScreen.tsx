@@ -1,9 +1,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { api, ApiError } from '../api/client';
-import { Account, Corridor, CorridorField, Payee } from '../api/types';
-import { SCENARIOS } from '../components/Console';
-
-const DEFAULT_TEST_CLABE = '012180000000045669';
+import { CURRENCY_INFO } from '../api/currencies';
+import { Account, Corridor, CorridorField, Payee, SandboxAccount } from '../api/types';
 import { BackLink, Screen } from '../components/Screen';
 
 // The banks behind most CLABEs (the backend keeps the same list); the rest just show no name.
@@ -42,16 +40,24 @@ function validate(field: CorridorField, value: string): string | null {
 interface Props {
   payeeId: string;
   payee: Payee;
+  /** The currencies this app offers, in order. */
+  currencies: string[];
+  /** Sandbox test accounts per currency; empty with a live key. */
+  sandboxAccounts: Record<string, SandboxAccount[]>;
   onSaved: (account: Account) => void;
   onBack: () => void;
 }
+
+const sameDetails = (a: Record<string, string>, b: Record<string, string>) =>
+  Object.entries(a).every(([k, v]) => (b[k] ?? '').replace(/\s/g, '').toUpperCase() === v.toUpperCase());
 
 /**
  * Add a bank account. The form is rendered from the corridor definition the
  * backend fetched from Avvio, never from a hardcoded field list. The account
  * number goes to the business's backend once and is not kept on this side.
  */
-export function BankFormScreen({ payeeId, payee, onSaved, onBack }: Props) {
+export function BankFormScreen({ payeeId, payee, currencies, sandboxAccounts, onSaved, onBack }: Props) {
+  const [currency, setCurrency] = useState(currencies[0]);
   const [corridor, setCorridor] = useState<Corridor | null>(null);
   const [values, setValues] = useState<Record<string, string>>({});
   // One random salt per visit to this form. The request id is derived from it
@@ -59,23 +65,46 @@ export function BankFormScreen({ payeeId, payee, onSaved, onBack }: Props) {
   // timeout is the same request, registered once; different details are a
   // different request. The salt keeps the id from revealing the account.
   const [salt] = useState(() => crypto.randomUUID());
-  // Pre-filled so the first run is taps, not typing; any name works.
-  const [holder, setHolder] = useState('Rosa López');
+  // Pre-filled so the first run is taps, not typing; any name works. It follows
+  // the currency until someone types their own.
+  const [holder, setHolder] = useState(CURRENCY_INFO[currencies[0]]?.sampleName ?? '');
+  const [holderEdited, setHolderEdited] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
+  // Each currency has its own bank fields: read them, then start on that
+  // currency's everyday test account (completes normally); the others are one
+  // tap away in the tray.
   useEffect(() => {
-    api.corridor().then((c) => {
+    let live = true;
+    setCorridor(null);
+    setFieldErrors({});
+    setError('');
+    api.corridor(currency).then((c) => {
+      if (!live) return;
       setCorridor(c);
-      // Start on the everyday outcome (…5669, completes normally); the other
-      // sandbox accounts are one tap away in the tray.
-      const f = c.fields.find((x) => x.checksum === 'clabe');
-      if (f) setValues((v) => (v[f.id] ? v : { ...v, [f.id]: DEFAULT_TEST_CLABE }));
-    }).catch((e: Error) => setError(e.message));
-  }, []);
+      setValues({ ...(sandboxAccounts[currency]?.[0]?.details ?? {}) });
+    }).catch((e: Error) => live && setError(e.message));
+    if (!holderEdited) setHolder(CURRENCY_INFO[currency]?.sampleName ?? '');
+    return () => { live = false; };
+    // Only a currency change reloads the form; the name and test accounts are read as they are then.
+  }, [currency]);
 
-  if (!corridor) return <Screen>{error ? <div className="note error">{error}</div> : <p className="muted">Loading the form…</p>}</Screen>;
+  const picker = currencies.length > 1 && (
+    <div className="field">
+      <span className="eyebrow">Where they bank</span>
+      <div className="currencies" role="radiogroup" aria-label="Destination currency">
+        {currencies.map((c) => (
+          <button type="button" key={c} role="radio" aria-checked={c === currency} className={c === currency ? 'on' : ''} disabled={busy} onClick={() => setCurrency(c)}>
+            <span className="flag" aria-hidden="true">{CURRENCY_INFO[c]?.flag ?? '🏦'}</span>{c}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
+  if (!corridor) return <Screen><h2 className="title">Add someone new</h2>{picker}{error ? <div className="note error">{error}</div> : <p className="muted">Loading the bank form…</p>}</Screen>;
 
   const clabeField = corridor.fields.find((f) => f.checksum === 'clabe');
 
@@ -96,7 +125,7 @@ export function BankFormScreen({ payeeId, payee, onSaved, onBack }: Props) {
     setBusy(true);
     setError('');
     try {
-      const res = await api.addAccount(payeeId, details, await requestIdFor(salt, { ...details, holder: holder.trim() }), holder.trim());
+      const res = await api.addAccount(payeeId, details, await requestIdFor(salt, { ...details, holder: holder.trim(), currency }), holder.trim(), currency);
       onSaved(res.account);
     } catch (e) {
       // The server names the field in errors[]; show it under the field when we can.
@@ -125,10 +154,11 @@ export function BankFormScreen({ payeeId, payee, onSaved, onBack }: Props) {
     <Screen footer={footer}>
       <form id="bank" onSubmit={submit}>
         <h2 className="title">Add someone new</h2>
-        <p className="muted">Their bank account in Mexico. Saved for {payee.name.split(' ')[0]}'s next transfer.</p>
+        <p className="muted">Their bank account in {CURRENCY_INFO[currency]?.country ?? currency}. Saved for {payee.name.split(' ')[0]}'s next transfer.</p>
+        {picker}
         <div className="field">
           <label htmlFor="holder" className="eyebrow">Their full name</label>
-          <input id="holder" autoComplete="off" value={holder} onChange={(e) => setHolder(e.target.value)} />
+          <input id="holder" autoComplete="off" value={holder} onChange={(e) => { setHolder(e.target.value); setHolderEdited(true); }} />
           {fieldErrors.holder && <p className="field-err">{fieldErrors.holder}</p>}
         </div>
         {corridor.fields.map((f) => (
@@ -161,16 +191,16 @@ export function BankFormScreen({ payeeId, payee, onSaved, onBack }: Props) {
           </div>
         ))}
         {error && <div className="note error">{error}</div>}
-        {clabeField && (
+        {(sandboxAccounts[currency]?.length ?? 0) > 0 && (
           <div className="tray">
             <span className="eyebrow">Sandbox · not part of your app</span>
             <p className="tray-hint">Tap a test account to fill it in. Its last digits decide what happens to the payout.</p>
-            {SCENARIOS.map(([acct, what]) => {
-              const on = clabe === acct;
+            {sandboxAccounts[currency].map((a: SandboxAccount) => {
+              const on = sameDetails(a.details, values);
               return (
-                <button type="button" key={acct} className={on ? 'on' : ''} aria-pressed={on} onClick={() => setValues({ ...values, [clabeField.id]: acct })}>
-                  <code>····{acct.slice(-4)}</code>
-                  <span className="what">{what}</span>
+                <button type="button" key={a.suffix} className={on ? 'on' : ''} aria-pressed={on} onClick={() => setValues({ ...a.details })}>
+                  <code>····{a.suffix}</code>
+                  <span className="what">{a.outcome}</span>
                   <span className="use" aria-hidden="true">{on ? '✓' : 'Use'}</span>
                 </button>
               );

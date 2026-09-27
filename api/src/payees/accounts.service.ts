@@ -1,5 +1,5 @@
 import { BadRequestException, HttpException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { TEST_CLABES } from '../visitor';
+import { isSandboxAccount, SANDBOX_ACCOUNTS } from '../sandbox-accounts';
 import { AvvioClient } from '../avvio/avvio.client';
 import { AvvioError, isUnknownOutcome } from '../avvio/avvio.error';
 import { Beneficiary, PaymentMethod, PaymentMethodInput } from '../avvio/avvio.types';
@@ -46,7 +46,8 @@ export class AccountsService {
   }
 
   /** `details` is keyed by the corridor's field ids, exactly as the form rendered them. */
-  async add(payeeId: string, details: Record<string, string>, requestId: string, holderName?: string): Promise<AccountView> {
+  async add(payeeId: string, details: Record<string, string>, requestId: string, holderName?: string, currency = this.config.currency): Promise<AccountView> {
+    if (!this.config.currencies.includes(currency)) throw new BadRequestException(`currency must be one of ${this.config.currencies.join(', ')}`);
     const payee = this.payees.byId(payeeId);
     if (!payee) throw new NotFoundException('unknown payee');
     // Only what a corridor form can produce: field ids to short strings. Anything
@@ -69,10 +70,11 @@ export class AccountsService {
     }
     const before = new Set(pending[requestId]);
     // The hosted demo is public: only the sandbox's test accounts, never real bank details.
-    if (this.config.publicDemo && !Object.values(details).some((v) => TEST_CLABES.includes(v.replace(/\D/g, '')))) {
-      throw new BadRequestException(`This public demo only accepts the sandbox test accounts: ${TEST_CLABES.join(', ')}`);
+    if (this.config.publicDemo && !isSandboxAccount(currency, details)) {
+      const sample = (SANDBOX_ACCOUNTS[currency] ?? []).map((a) => Object.values(a.details).join(' / ')).join(', ');
+      throw new BadRequestException(`This public demo only accepts the sandbox test accounts for ${currency}: ${sample}`);
     }
-    const method: PaymentMethodInput = { kind: 'fiat', currency: this.config.currency, recipientDetails: details };
+    const method: PaymentMethodInput = { kind: 'fiat', currency, recipientDetails: details };
     // The app's id for this submission: a resubmit of the same form after a
     // timeout reuses it, so the account is registered once.
     const idempotencyKey = requestId;
@@ -106,7 +108,7 @@ export class AccountsService {
       this.log.log('api', `registered for ${payeeId}, but could not tell which of its accounts is the one just sent; refused to guess`);
       throw new HttpException({ message: 'Registered, but it is ambiguous which saved account this is. Remove duplicate accounts for this payee and try again.' }, 409);
     }
-    const account: Account = { methodId: m.id, destinationAccountId: m.destinationAccountId, last4: m.last4 ?? null, bank: bankOf(details), holder: holderName ?? null, ...(holderName ? { recipientKey: key } : {}), currency: this.config.currency, registeredAt: new Date().toISOString() };
+    const account: Account = { methodId: m.id, destinationAccountId: m.destinationAccountId, last4: m.last4 ?? null, bank: currency === 'MXN' ? bankOf(details) : null, holder: holderName ?? null, ...(holderName ? { recipientKey: key } : {}), currency, registeredAt: new Date().toISOString() };
     state.recipients[key] = beneficiary.id;
     state.accounts[payeeId] = [...(state.accounts[payeeId] ?? []).filter((a) => a.destinationAccountId !== account.destinationAccountId), account];
     this.repo.save();

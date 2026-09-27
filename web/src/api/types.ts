@@ -10,7 +10,16 @@ export interface Payee {
   note: string;
 }
 
+/** A sandbox test account: its last digits pick the payout's outcome. */
+export interface SandboxAccount {
+  suffix: string;
+  outcome: string;
+  details: Record<string, string>;
+}
+
 export interface ServerState {
+  currencies: string[];
+  sandboxAccounts: Record<string, SandboxAccount[]>;
   /** The hosted demo: shared sandbox, test accounts only, tops itself up. */
   publicDemo?: boolean;
   configured: boolean;
@@ -79,6 +88,7 @@ export interface Withdrawal {
   amount: string;
   last4: string | null;
   holder?: string | null;
+  purposeOfPayment?: string;
   reference: string;
   status: WithdrawalStatus;
   payoutId?: string;

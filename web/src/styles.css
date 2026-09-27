@@ -330,3 +330,18 @@ h2.title { margin: 8px 0 14px; font-weight: 500; font-size: 24px; line-height: 1
 .outcomes td { padding: 1px 12px 1px 0; vertical-align: top; }
 .outcomes code { font: 12px var(--mono); color: var(--c-tx); }
 .cbtn { border: 0; border-radius: 999px; padding: 4px 12px; background: rgba(255, 255, 255, .1); color: var(--c-tx); font: 700 12px var(--font); cursor: pointer; }
+
+/* the destination currency picker on "Add someone new" */
+.currencies { display: flex; flex-wrap: wrap; gap: 6px; }
+.currencies button { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px; border: 0; border-radius: 999px; background: var(--paper); box-shadow: 0 0 0 1px var(--line) inset; font-weight: 700; font-size: 13px; cursor: pointer; }
+.currencies button.on { box-shadow: 0 0 0 2px var(--ink) inset; }
+.currencies .flag { font-size: 16px; line-height: 1; }
+.phone .currencies button { background: var(--ios-card); box-shadow: none; font: 600 14px var(--ios); }
+.phone .currencies button.on { background: var(--ios-tint); color: #fff; }
+/* a recipient's currency, as a small flag on their avatar */
+.face { position: relative; }
+.face-flag { position: absolute; right: -4px; bottom: -2px; font-size: 16px; line-height: 1; }
+
+/* the reason picker on Review: a native select that reads like a row value */
+.summary.reason select { max-width: 60%; border: 0; background: transparent; font: inherit; font-weight: 600; text-align: right; color: var(--ink); cursor: pointer; }
+.phone .summary.reason select { font: 600 17px var(--ios); color: var(--ios-tint); }
